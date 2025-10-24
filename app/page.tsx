@@ -1,8 +1,42 @@
 import Link from "next/link";
+import { createClient } from "@/lib/supabase/server";
 
-export default function HomePage() {
+export default async function HomePage() {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
   return (
     <main className="min-h-screen">
+      {/* Header */}
+      <header className="border-b">
+        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
+          <Link href="/" className="text-2xl font-bold text-primary">
+            Storybooks
+          </Link>
+          <nav className="flex gap-4">
+            {user ? (
+              <>
+                <Link href="/dashboard" className="text-gray-600 hover:text-gray-900">
+                  Dashboard
+                </Link>
+                <Link href="/create" className="bg-primary text-white px-4 py-2 rounded-lg hover:opacity-90">
+                  Create Story
+                </Link>
+              </>
+            ) : (
+              <>
+                <Link href="/login" className="text-gray-600 hover:text-gray-900">
+                  Login
+                </Link>
+                <Link href="/signup" className="bg-primary text-white px-4 py-2 rounded-lg hover:opacity-90">
+                  Sign Up
+                </Link>
+              </>
+            )}
+          </nav>
+        </div>
+      </header>
+
       <div className="container mx-auto px-4 py-16">
         <div className="text-center max-w-4xl mx-auto">
           <h1 className="text-5xl font-bold mb-6">
@@ -12,12 +46,21 @@ export default function HomePage() {
             AI-generated personalized illustrated storybooks that make your child the hero of their own adventure
           </p>
           <div className="flex gap-4 justify-center">
-            <Link
-              href="/create"
-              className="bg-primary text-primary-foreground px-8 py-3 rounded-lg font-semibold hover:opacity-90 transition"
-            >
-              Create Your Story
-            </Link>
+            {user ? (
+              <Link
+                href="/create"
+                className="bg-primary text-primary-foreground px-8 py-3 rounded-lg font-semibold hover:opacity-90 transition"
+              >
+                Create Your Story
+              </Link>
+            ) : (
+              <Link
+                href="/signup"
+                className="bg-primary text-primary-foreground px-8 py-3 rounded-lg font-semibold hover:opacity-90 transition"
+              >
+                Get Started
+              </Link>
+            )}
             <Link
               href="/templates"
               className="bg-secondary text-secondary-foreground px-8 py-3 rounded-lg font-semibold hover:opacity-90 transition"
