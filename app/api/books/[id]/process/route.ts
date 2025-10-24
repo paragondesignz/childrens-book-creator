@@ -1,57 +1,71 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
-import { db } from '@/lib/db';
-import { addBookProcessingJob } from '@/lib/queue';
+import { createClient } from '@/lib/supabase/server';
+import { bookQueue } from '@/lib/queues/bookQueue';
 
 export async function POST(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions);
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
 
-    if (!session?.user?.id) {
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const book = await db.bookOrder.findUnique({
-      where: { id: params.id },
-      include: {
-        payments: true,
-      },
-    });
+    // Verify book belongs to user
+    const { data: book, error: bookError } = await supabase
+      .from('book_orders')
+      .select('*, payments(*)')
+      .eq('id', params.id)
+      .eq('user_id', user.id)
+      .single();
 
-    if (!book) {
+    if (bookError || !book) {
       return NextResponse.json({ error: 'Book not found' }, { status: 404 });
     }
 
-    if (book.userId !== session.user.id) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-
     // Check if payment is completed
-    const paidPayment = book.payments.find((p) => p.status === 'completed');
-    if (!paidPayment) {
+    const hasCompletedPayment = book.payments?.some((p: any) => p.status === 'completed');
+    if (!hasCompletedPayment) {
       return NextResponse.json({ error: 'Payment required' }, { status: 402 });
     }
 
     // Check if already processing or completed
-    if (book.status !== 'draft') {
-      return NextResponse.json({ error: 'Book already processing or completed' }, { status: 400 });
+    if (book.status !== 'draft' && book.status !== 'failed') {
+      return NextResponse.json({ error: 'Book is already being processed or completed' }, { status: 400 });
     }
 
-    // Update status and add to queue
-    await db.bookOrder.update({
-      where: { id: params.id },
-      data: { status: 'processing' },
+    // Update status to processing
+    const { error: updateError } = await supabase
+      .from('book_orders')
+      .update({ status: 'processing' })
+      .eq('id', book.id);
+
+    if (updateError) {
+      throw updateError;
+    }
+
+    // Add job to queue
+    await bookQueue.add('process-book', {
+      bookOrderId: book.id,
+      userId: user.id,
+    }, {
+      attempts: 3,
+      backoff: {
+        type: 'exponential',
+        delay: 5000,
+      },
     });
 
-    await addBookProcessingJob(params.id);
-
-    return NextResponse.json({ success: true, message: 'Book processing started' });
+    return NextResponse.json({
+      message: 'Book processing started',
+      bookId: book.id,
+      status: 'processing'
+    });
   } catch (error) {
-    console.error('Error starting book processing:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    console.error('Process book error:', error);
+    return NextResponse.json({ error: 'Failed to start processing' }, { status: 500 });
   }
 }

@@ -22,6 +22,9 @@ if (process.env.REDIS_TLS_ENABLED === 'true') {
 
 export const redis = new Redis(getRedisUrl(), redisConfig);
 
+// Export for BullMQ
+export const redisConnection = redis;
+
 redis.on('error', (error) => {
   console.error('Redis connection error:', error);
 });

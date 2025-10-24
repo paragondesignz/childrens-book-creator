@@ -56,18 +56,19 @@ export async function POST(
       throw paymentError;
     }
 
-    // Update book status to processing
-    const { error: updateError } = await supabase
-      .from('book_orders')
-      .update({ status: 'processing' })
-      .eq('id', book.id);
+    // Trigger book processing
+    const processResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/books/${book.id}/process`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
 
-    if (updateError) {
-      throw updateError;
+    if (!processResponse.ok) {
+      console.error('Failed to trigger processing');
     }
 
-    // Trigger book processing (we'll create this endpoint next)
-    // For now, we'll just redirect to status page
+    // Redirect to status page
     redirect(`/books/${book.id}/status`);
   } catch (error) {
     console.error('Mock payment error:', error);

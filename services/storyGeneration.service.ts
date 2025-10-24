@@ -1,34 +1,58 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { db } from '@/lib/db';
-import type { BookConfiguration, GeneratedStoryData, StoryPage } from '@/types';
+import { createClient } from '@supabase/supabase-js';
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
+
+interface StoryPage {
+  pageNumber: number;
+  text: string;
+  imagePrompt: string;
+}
+
+interface GeneratedStoryData {
+  title: string;
+  pages: StoryPage[];
+}
+
+interface GenerateStoryParams {
+  bookOrderId: string;
+  templateId?: string;
+  childFirstName: string;
+  childAge: number;
+  childGender?: string;
+  favouriteColours: string[];
+  interests: string[];
+  personalityTraits: string[];
+  customPrompt?: string;
+  pets: any[];
+}
 
 export class StoryGenerationService {
   private model = genAI.getGenerativeModel({
-    model: process.env.GEMINI_TEXT_MODEL || 'gemini-2.0-flash',
+    model: process.env.GEMINI_TEXT_MODEL || 'gemini-2.0-flash-exp',
   });
 
-  async generateStory(bookOrderId: string): Promise<void> {
+  async generateStory(params: GenerateStoryParams): Promise<any> {
+    const { bookOrderId, templateId } = params;
+
     try {
-      // Update status
-      await db.bookOrder.update({
-        where: { id: bookOrderId },
-        data: { status: 'generating-story', processingStartedAt: new Date() },
-      });
-
-      // Get book order details
-      const bookOrder = await db.bookOrder.findUnique({
-        where: { id: bookOrderId },
-        include: { template: true, pets: true },
-      });
-
-      if (!bookOrder) {
-        throw new Error('Book order not found');
+      // Fetch template if provided
+      let template = null;
+      if (templateId) {
+        const { data } = await supabase
+          .from('story_templates')
+          .select('*')
+          .eq('id', templateId)
+          .single();
+        template = data;
       }
 
       // Build prompt
-      const prompt = this.buildPrompt(bookOrder);
+      const prompt = this.buildPrompt(params, template);
 
       console.log('Generating story with Gemini...');
 
@@ -55,86 +79,90 @@ export class StoryGenerationService {
         throw new Error('Invalid story data received from Gemini');
       }
 
+      // Prepare full text
+      const fullText = storyData.pages.map(p => p.text).join('\n\n');
+
       // Save to database
-      const generatedStory = await db.generatedStory.create({
-        data: {
-          bookOrderId,
+      const { data: generatedStory, error: storyError } = await supabase
+        .from('generated_stories')
+        .insert({
+          book_order_id: bookOrderId,
           title: storyData.title,
-          fullStoryJson: storyData as any,
-          wordCount: this.calculateWordCount(storyData.pages),
-          generationPrompt: prompt,
-          contentModerationPassed: false, // Will be checked separately
-          moderationFlags: {},
-        },
-      });
+          full_text: fullText,
+          page_count: storyData.pages.length,
+          word_count: this.calculateWordCount(storyData.pages),
+          generation_prompt: prompt,
+          content_moderation_passed: false,
+          moderation_flags: {},
+        })
+        .select()
+        .single();
+
+      if (storyError || !generatedStory) {
+        throw new Error('Failed to save story to database');
+      }
 
       // Create story pages
-      for (const page of storyData.pages) {
-        await db.storyPage.create({
-          data: {
-            storyId: generatedStory.id,
-            pageNumber: page.pageNumber,
-            pageText: page.text,
-            imagePrompt: page.imagePrompt,
-            wordCount: page.text.split(/\s+/).length,
-          },
-        });
+      const pagesData = storyData.pages.map((page) => ({
+        story_id: generatedStory.id,
+        page_number: page.pageNumber,
+        page_text: page.text,
+        image_prompt: page.imagePrompt,
+        word_count: page.text.split(/\s+/).length,
+      }));
+
+      const { error: pagesError } = await supabase
+        .from('story_pages')
+        .insert(pagesData);
+
+      if (pagesError) {
+        throw new Error('Failed to save story pages');
       }
 
       console.log(`Story generated successfully: ${storyData.title}`);
+
+      return {
+        id: generatedStory.id,
+        title: storyData.title,
+        pages: storyData.pages,
+      };
     } catch (error) {
       console.error('Story generation error:', error);
-      await db.bookOrder.update({
-        where: { id: bookOrderId },
-        data: {
-          status: 'failed',
-          errorMessage: error instanceof Error ? error.message : 'Unknown error',
-        },
-      });
       throw error;
     }
   }
 
-  private buildPrompt(bookOrder: any): string {
-    const template = bookOrder.template;
-    const childInfo = {
-      firstName: bookOrder.childFirstName,
-      age: bookOrder.childAge,
-      gender: bookOrder.childGender,
-      favouriteColours: bookOrder.favouriteColours,
-      interests: bookOrder.interests,
-      personalityTraits: bookOrder.personalityTraits,
-    };
-    const pets = bookOrder.pets || [];
+  private buildPrompt(params: GenerateStoryParams, template: any): string {
+    const { childFirstName, childAge, childGender, favouriteColours, interests, personalityTraits, customPrompt, pets } = params;
 
-    let prompt = `Write a 15-page children's story for ${childInfo.firstName}, a ${childInfo.age}-year-old child.\n\n`;
+    let prompt = `Write a 15-page children's story for ${childFirstName}, a ${childAge}-year-old child.\n\n`;
 
     if (template) {
       prompt += `Story Template: ${template.title}\n`;
       prompt += `${template.description}\n\n`;
-    } else if (bookOrder.customStoryPrompt) {
-      prompt += `Custom Story Idea: ${bookOrder.customStoryPrompt}\n\n`;
+    } else if (customPrompt) {
+      prompt += `Custom Story Idea: ${customPrompt}\n\n`;
     }
 
     prompt += `Child's Information:\n`;
-    prompt += `- Name: ${childInfo.firstName}\n`;
-    prompt += `- Age: ${childInfo.age} years old\n`;
-    if (childInfo.gender) prompt += `- Gender: ${childInfo.gender}\n`;
-    if (childInfo.interests?.length) prompt += `- Interests: ${childInfo.interests.join(', ')}\n`;
-    if (childInfo.favouriteColours?.length) prompt += `- Favourite Colours: ${childInfo.favouriteColours.join(', ')}\n`;
-    if (childInfo.personalityTraits?.length) prompt += `- Personality: ${childInfo.personalityTraits.join(', ')}\n`;
+    prompt += `- Name: ${childFirstName}\n`;
+    prompt += `- Age: ${childAge} years old\n`;
+    if (childGender) prompt += `- Gender: ${childGender}\n`;
+    if (interests?.length) prompt += `- Interests: ${interests.join(', ')}\n`;
+    if (favouriteColours?.length) prompt += `- Favourite Colours: ${favouriteColours.join(', ')}\n`;
+    if (personalityTraits?.length) prompt += `- Personality: ${personalityTraits.join(', ')}\n`;
 
     if (pets.length > 0) {
       prompt += `\nPets to include in the story:\n`;
       pets.forEach((pet: any) => {
-        prompt += `- ${pet.petName}, a ${pet.colour || ''} ${pet.petType}${pet.breed ? ` (${pet.breed})` : ''}\n`;
+        prompt += `- ${pet.pet_name}, a ${pet.colour || ''} ${pet.pet_type}${pet.breed ? ` (${pet.breed})` : ''}\n`;
       });
     }
 
     prompt += `\nRequirements:\n`;
-    prompt += `- Age-appropriate language for ${childInfo.age}-year-olds\n`;
+    prompt += `- Age-appropriate language for ${childAge}-year-olds\n`;
     prompt += `- Positive, encouraging themes\n`;
-    prompt += `- ${childInfo.firstName} should be the protagonist and hero of the story\n`;
+    prompt += `- ${childFirstName} should be the protagonist and hero of the story\n`;
     prompt += `- Story must be exactly 15 pages\n`;
     prompt += `- Each page should have 50-100 words\n`;
     prompt += `- Include engaging dialogue\n`;
@@ -149,7 +177,7 @@ export class StoryGenerationService {
     prompt += `    {\n`;
     prompt += `      "pageNumber": 1,\n`;
     prompt += `      "text": "The text for this page (50-100 words)",\n`;
-    prompt += `      "imagePrompt": "Detailed description for illustration showing ${childInfo.firstName}..."\n`;
+    prompt += `      "imagePrompt": "Detailed description for illustration showing ${childFirstName}..."\n`;
     prompt += `    }\n`;
     prompt += `  ]\n`;
     prompt += `}`;
