@@ -6,12 +6,15 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
+    console.log('[mock-payment] Starting payment processing for book:', params.id);
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
+      console.log('[mock-payment] No user found');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    console.log('[mock-payment] User authenticated:', user.id);
 
     // Verify book belongs to user
     const { data: book, error: bookError } = await supabase
@@ -42,25 +45,35 @@ export async function POST(
     }
 
     // Create mock payment record
+    console.log('[mock-payment] Creating payment record for book:', book.id);
+    const paymentData = {
+      book_order_id: book.id,
+      user_id: user.id,
+      amount_nzd: '19.99', // Decimal type requires string
+      currency: 'NZD',
+      stripe_payment_intent_id: `mock_pi_${Date.now()}`,
+      product_tier: 'pdf-only',
+      status: 'completed',
+      paid_at: new Date().toISOString(),
+    };
+    console.log('[mock-payment] Payment data:', paymentData);
+
     const { data: payment, error: paymentError } = await supabase
       .from('payments')
-      .insert({
-        book_order_id: book.id,
-        user_id: user.id,
-        amount_nzd: 19.99,
-        currency: 'NZD',
-        stripe_payment_intent_id: `mock_pi_${Date.now()}`,
-        product_tier: 'pdf-only',
-        status: 'completed',
-        paid_at: new Date().toISOString(),
-      })
+      .insert(paymentData)
       .select()
       .single();
 
     if (paymentError) {
-      console.error('Payment insert error:', paymentError);
+      console.error('[mock-payment] Payment insert error:', {
+        message: paymentError.message,
+        details: paymentError.details,
+        hint: paymentError.hint,
+        code: paymentError.code
+      });
       throw paymentError;
     }
+    console.log('[mock-payment] Payment created successfully:', payment.id);
 
     // Trigger book processing
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || 'http://localhost:3000';
@@ -89,7 +102,15 @@ export async function POST(
       bookId: book.id
     });
   } catch (error) {
-    console.error('Mock payment error:', error);
-    return NextResponse.json({ error: 'Payment processing failed' }, { status: 500 });
+    console.error('[mock-payment] ERROR:', error);
+    console.error('[mock-payment] Error details:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      error: error
+    });
+    return NextResponse.json({
+      error: 'Payment processing failed',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 });
   }
 }
