@@ -5,8 +5,10 @@
   "scripts": {
     "dev": "next dev",
     "build": "prisma generate && next build",
+    "build:worker": "prisma generate",
     "postinstall": "prisma generate",
     "start": "next start",
+    "start:worker": "tsx scripts/start-worker.ts",
     "lint": "next lint",
     "type-check": "tsc --noEmit",
     "worker": "tsx scripts/start-worker.ts",
