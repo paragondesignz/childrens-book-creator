@@ -7,11 +7,20 @@ const getRedisUrl = () => {
   throw new Error('REDIS_URL is not defined');
 };
 
-export const redis = new Redis(getRedisUrl(), {
+const redisConfig: any = {
   maxRetriesPerRequest: 3,
   enableReadyCheck: true,
-  tls: process.env.REDIS_TLS_ENABLED === 'true' ? {} : undefined,
-});
+};
+
+// Configure TLS for Upstash
+if (process.env.REDIS_TLS_ENABLED === 'true') {
+  redisConfig.tls = {
+    rejectUnauthorized: false,
+  };
+  redisConfig.family = 6; // Use IPv6
+}
+
+export const redis = new Redis(getRedisUrl(), redisConfig);
 
 redis.on('error', (error) => {
   console.error('Redis connection error:', error);
