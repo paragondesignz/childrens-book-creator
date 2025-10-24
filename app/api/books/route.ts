@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
-import { db } from '@/lib/db';
+import { createClient } from '@/lib/supabase/server';
 import { z } from 'zod';
 
 const createBookSchema = z.object({
@@ -18,21 +16,27 @@ const createBookSchema = z.object({
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
 
-    if (!session?.user?.id) {
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const books = await db.bookOrder.findMany({
-      where: { userId: session.user.id },
-      include: {
-        template: true,
-        generatedStory: true,
-        generatedPdf: true,
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+    const { data: books, error } = await supabase
+      .from('book_orders')
+      .select(`
+        *,
+        template:story_templates(*),
+        generated_story:generated_stories(*),
+        generated_pdf:generated_pdfs(*)
+      `)
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      throw error;
+    }
 
     return NextResponse.json({ books });
   } catch (error) {
@@ -43,30 +47,37 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
 
-    if (!session?.user?.id) {
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const body = await req.json();
     const validatedData = createBookSchema.parse(body);
 
-    const book = await db.bookOrder.create({
-      data: {
-        userId: session.user.id,
-        templateId: validatedData.templateId,
-        childFirstName: validatedData.childFirstName,
-        childAge: validatedData.childAge,
-        childGender: validatedData.childGender,
-        favouriteColours: validatedData.favouriteColours as any,
-        interests: validatedData.interests as any,
-        personalityTraits: validatedData.personalityTraits as any,
-        customStoryPrompt: validatedData.customStoryPrompt,
-        illustrationStyle: validatedData.illustrationStyle,
+    const { data: book, error } = await supabase
+      .from('book_orders')
+      .insert({
+        user_id: user.id,
+        template_id: validatedData.templateId,
+        child_first_name: validatedData.childFirstName,
+        child_age: validatedData.childAge,
+        child_gender: validatedData.childGender,
+        favourite_colours: validatedData.favouriteColours,
+        interests: validatedData.interests,
+        personality_traits: validatedData.personalityTraits,
+        custom_story_prompt: validatedData.customStoryPrompt,
+        illustration_style: validatedData.illustrationStyle,
         status: 'draft',
-      },
-    });
+      })
+      .select()
+      .single();
+
+    if (error) {
+      throw error;
+    }
 
     return NextResponse.json({ book }, { status: 201 });
   } catch (error) {
