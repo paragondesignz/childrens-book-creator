@@ -44,28 +44,38 @@ export async function POST(
       .insert({
         book_order_id: book.id,
         user_id: user.id,
-        amount: 19.99,
-        currency: 'usd',
+        amount_nzd: 19.99,
+        currency: 'NZD',
         stripe_payment_intent_id: `mock_pi_${Date.now()}`,
+        product_tier: 'pdf-only',
         status: 'completed',
+        paid_at: new Date().toISOString(),
       })
       .select()
       .single();
 
     if (paymentError) {
+      console.error('Payment insert error:', paymentError);
       throw paymentError;
     }
 
     // Trigger book processing
-    const processResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/books/${book.id}/process`, {
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || 'http://localhost:3000';
+    console.log('Triggering processing at:', `${appUrl}/api/books/${book.id}/process`);
+
+    const processResponse = await fetch(`${appUrl}/api/books/${book.id}/process`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Cookie': req.headers.get('cookie') || '',
       },
     });
 
     if (!processResponse.ok) {
-      console.error('Failed to trigger processing');
+      const errorText = await processResponse.text();
+      console.error('Failed to trigger processing:', processResponse.status, errorText);
+    } else {
+      console.log('Processing triggered successfully');
     }
 
     // Redirect to status page
