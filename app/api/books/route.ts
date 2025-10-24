@@ -48,43 +48,71 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+    console.log('Auth check:', { user: user?.id, authError });
+
+    if (authError) {
+      console.error('Auth error:', authError);
+      return NextResponse.json({ error: 'Authentication failed', details: authError.message }, { status: 401 });
+    }
 
     if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      console.error('No user found in session');
+      return NextResponse.json({ error: 'Unauthorized - no user in session' }, { status: 401 });
     }
 
     const body = await req.json();
+    console.log('Request body received:', { ...body, childFirstName: body.childFirstName, illustrationStyle: body.illustrationStyle });
+
     const validatedData = createBookSchema.parse(body);
+    console.log('Data validated successfully');
+
+    const insertData = {
+      user_id: user.id,
+      template_id: validatedData.templateId,
+      child_first_name: validatedData.childFirstName,
+      child_age: validatedData.childAge,
+      child_gender: validatedData.childGender,
+      favourite_colours: validatedData.favouriteColours,
+      interests: validatedData.interests,
+      personality_traits: validatedData.personalityTraits,
+      custom_story_prompt: validatedData.customStoryPrompt,
+      illustration_style: validatedData.illustrationStyle,
+      status: 'draft',
+    };
+
+    console.log('Attempting to insert book order:', { user_id: user.id, has_template: !!validatedData.templateId });
 
     const { data: book, error } = await supabase
       .from('book_orders')
-      .insert({
-        user_id: user.id,
-        template_id: validatedData.templateId,
-        child_first_name: validatedData.childFirstName,
-        child_age: validatedData.childAge,
-        child_gender: validatedData.childGender,
-        favourite_colours: validatedData.favouriteColours,
-        interests: validatedData.interests,
-        personality_traits: validatedData.personalityTraits,
-        custom_story_prompt: validatedData.customStoryPrompt,
-        illustration_style: validatedData.illustrationStyle,
-        status: 'draft',
-      })
+      .insert(insertData)
       .select()
       .single();
 
     if (error) {
+      console.error('Supabase insert error:', {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code
+      });
       throw error;
     }
 
+    console.log('Book created successfully:', book.id);
     return NextResponse.json({ book }, { status: 201 });
   } catch (error) {
     if (error instanceof z.ZodError) {
+      console.error('Validation error:', error.errors);
       return NextResponse.json({ error: 'Validation error', details: error.errors }, { status: 400 });
     }
     console.error('Error creating book:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    return NextResponse.json({
+      error: 'Internal server error',
+      message: errorMessage,
+      details: error
+    }, { status: 500 });
   }
 }
