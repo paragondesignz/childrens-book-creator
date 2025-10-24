@@ -49,7 +49,7 @@ model UserSession {
 
 model StoryTemplate {
   id              String   @id @default(uuid())
-  title           String   @db.VarChar(255)
+  title           String   @unique @db.VarChar(255)
   description     String?  @db.Text
   category        String   @db.VarChar(50)
   minAge          Int      @map("min_age")

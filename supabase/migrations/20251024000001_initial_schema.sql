@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS public.users (
 -- Story templates
 CREATE TABLE IF NOT EXISTS public.story_templates (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  title VARCHAR(255) NOT NULL,
+  title VARCHAR(255) UNIQUE NOT NULL,
   description TEXT,
   category VARCHAR(50) NOT NULL,
   min_age INTEGER NOT NULL,
