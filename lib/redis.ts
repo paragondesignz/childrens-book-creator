@@ -8,6 +8,7 @@ if (typeof window === 'undefined') {
 }
 
 import Redis from 'ioredis';
+import type { RedisOptions } from 'ioredis';
 
 const getRedisUrl = () => {
   if (process.env.REDIS_URL) {
@@ -16,10 +17,11 @@ const getRedisUrl = () => {
   throw new Error('REDIS_URL is not defined');
 };
 
-const getRedisConfig = () => {
-  const config: any = {
+const getRedisConfig = (): RedisOptions => {
+  const config: RedisOptions = {
     maxRetriesPerRequest: null, // Required by BullMQ for blocking operations
     enableReadyCheck: true,
+    lazyConnect: true, // Don't connect immediately
   };
 
   // Configure TLS for Upstash
@@ -33,71 +35,37 @@ const getRedisConfig = () => {
   return config;
 };
 
-// Skip Redis initialization during Next.js build phase
-const isBuildTime = process.env.NEXT_PHASE === 'phase-production-build';
+// Create a function that returns Redis connection lazily
+export const createRedisConnection = (): Redis => {
+  const redisUrl = getRedisUrl();
+  const config = getRedisConfig();
 
-let redisInstance: Redis | null = null;
-let bullMQConfig: any = null;
+  const connection = new Redis(redisUrl, config);
 
-// Lazy initialization for Redis
-const getRedisInstance = () => {
-  if (isBuildTime) {
-    throw new Error('Redis should not be accessed during build time');
-  }
+  connection.on('error', (error) => {
+    console.error('Redis connection error:', error);
+  });
 
-  if (!redisInstance) {
-    redisInstance = new Redis(getRedisUrl(), getRedisConfig());
+  connection.on('connect', () => {
+    console.log('Redis connected successfully');
+  });
 
-    redisInstance.on('error', (error) => {
-      console.error('Redis connection error:', error);
-    });
-
-    redisInstance.on('connect', () => {
-      console.log('Redis connected successfully');
-    });
-  }
-
-  return redisInstance;
+  return connection;
 };
 
-// Lazy initialization for BullMQ connection config
-const getBullMQConnection = () => {
-  if (isBuildTime) {
-    // Return a dummy config during build time
-    return {};
-  }
-
-  if (!bullMQConfig) {
-    bullMQConfig = {
-      url: getRedisUrl(),
-      ...getRedisConfig(),
-    };
-  }
-
-  return bullMQConfig;
+// Export configuration for BullMQ
+export const getBullMQConnectionConfig = () => {
+  return {
+    host: process.env.REDIS_URL ? new URL(process.env.REDIS_URL).hostname : undefined,
+    port: process.env.REDIS_URL ? parseInt(new URL(process.env.REDIS_URL).port || '6379') : undefined,
+    username: process.env.REDIS_URL && new URL(process.env.REDIS_URL).username ? new URL(process.env.REDIS_URL).username : 'default',
+    password: process.env.REDIS_URL && new URL(process.env.REDIS_URL).password ? new URL(process.env.REDIS_URL).password : undefined,
+    ...getRedisConfig(),
+  };
 };
 
-// Export getters instead of direct instances
-export const redis = new Proxy({} as Redis, {
-  get: (target, prop) => {
-    const instance = getRedisInstance();
-    return (instance as any)[prop];
-  }
-});
-
-export const bullMQConnection = new Proxy({} as any, {
-  get: (target, prop) => {
-    const config = getBullMQConnection();
-    return config[prop];
-  },
-  ownKeys: (target) => {
-    const config = getBullMQConnection();
-    return Reflect.ownKeys(config);
-  },
-  getOwnPropertyDescriptor: (target, prop) => {
-    const config = getBullMQConnection();
-    return Object.getOwnPropertyDescriptor(config, prop);
-  }
-});
-
-export const redisConnection = redis;
+// Legacy exports for backward compatibility - but these should not be used
+// They're here only to prevent import errors
+export const redis = null as any;
+export const redisConnection = null as any;
+export const bullMQConnection = null as any;

@@ -1,8 +1,8 @@
 import { Queue } from 'bullmq';
-import { bullMQConnection } from './redis';
+import { getBullMQConnectionConfig } from './redis';
 
 export const bookProcessingQueue = new Queue('book-processing', {
-  connection: bullMQConnection,
+  connection: getBullMQConnectionConfig(),
   defaultJobOptions: {
     attempts: 3,
     backoff: {
