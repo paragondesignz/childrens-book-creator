@@ -1,0 +1,332 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  passwordHash  String?   @map("password_hash")
+  firstName     String?   @map("first_name") @db.VarChar(100)
+  lastName      String?   @map("last_name") @db.VarChar(100)
+  phone         String?   @db.VarChar(20)
+  dateOfBirth   DateTime? @map("date_of_birth") @db.Date
+  ageVerified   Boolean   @default(false) @map("age_verified")
+  emailVerified Boolean   @default(false) @map("email_verified")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+  lastLogin     DateTime? @map("last_login")
+
+  sessions            UserSession[]
+  bookOrders          BookOrder[]
+  payments            Payment[]
+  privacyConsents     PrivacyConsent[]
+  dataDeletionRequests DataDeletionRequest[]
+  auditLogs           AuditLog[]
+  moderationReviews   ModerationReview[]
+
+  @@map("users")
+}
+
+model UserSession {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  token     String   @db.VarChar(512)
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_sessions")
+}
+
+model StoryTemplate {
+  id              String   @id @default(uuid())
+  title           String   @db.VarChar(255)
+  description     String?  @db.Text
+  category        String   @db.VarChar(50)
+  minAge          Int      @map("min_age")
+  maxAge          Int      @map("max_age")
+  pageCount       Int      @default(15) @map("page_count")
+  promptTemplate  String   @map("prompt_template") @db.Text
+  imageStyleGuide String   @map("image_style_guide") @db.Text
+  includesPets    Boolean  @default(false) @map("includes_pets")
+  includesInterests Boolean @default(true) @map("includes_interests")
+  isActive        Boolean  @default(true) @map("is_active")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  bookOrders BookOrder[]
+
+  @@map("story_templates")
+}
+
+model BookOrder {
+  id                    String    @id @default(uuid())
+  userId                String    @map("user_id")
+  templateId            String?   @map("template_id")
+  childFirstName        String    @map("child_first_name") @db.VarChar(100)
+  childAge              Int       @map("child_age")
+  childGender           String?   @map("child_gender") @db.VarChar(50)
+  favouriteColours      Json?     @map("favourite_colours")
+  interests             Json?
+  personalityTraits     Json?     @map("personality_traits")
+  customStoryPrompt     String?   @map("custom_story_prompt") @db.Text
+  illustrationStyle     String    @map("illustration_style") @db.VarChar(50)
+  status                String    @default("draft") @db.VarChar(50)
+  processingStartedAt   DateTime? @map("processing_started_at")
+  processingCompletedAt DateTime? @map("processing_completed_at")
+  errorMessage          String?   @map("error_message") @db.Text
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+
+  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  template        StoryTemplate? @relation(fields: [templateId], references: [id])
+  pets            BookPet[]
+  uploadedImages  UploadedImage[]
+  generatedStory  GeneratedStory?
+  generatedImages GeneratedImage[]
+  generatedPdf    GeneratedPdf?
+  payments        Payment[]
+  printOrders     PrintOrder[]
+  moderationReviews ModerationReview[]
+
+  @@map("book_orders")
+}
+
+model BookPet {
+  id          String   @id @default(uuid())
+  bookOrderId String   @map("book_order_id")
+  petName     String   @map("pet_name") @db.VarChar(100)
+  petType     String   @map("pet_type") @db.VarChar(50)
+  breed       String?  @db.VarChar(100)
+  colour      String?  @db.VarChar(100)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  bookOrder BookOrder @relation(fields: [bookOrderId], references: [id], onDelete: Cascade)
+
+  @@map("book_pets")
+}
+
+model UploadedImage {
+  id               String   @id @default(uuid())
+  bookOrderId      String   @map("book_order_id")
+  imageType        String   @map("image_type") @db.VarChar(50)
+  originalFilename String?  @map("original_filename") @db.VarChar(255)
+  storageUrl       String   @map("storage_url") @db.VarChar(512)
+  encryptedUrl     String   @map("encrypted_url") @db.VarChar(512)
+  expiresAt        DateTime @map("expires_at")
+  uploadedAt       DateTime @default(now()) @map("uploaded_at")
+
+  bookOrder BookOrder @relation(fields: [bookOrderId], references: [id], onDelete: Cascade)
+
+  @@map("uploaded_images")
+}
+
+model GeneratedStory {
+  id                       String   @id @default(uuid())
+  bookOrderId              String   @unique @map("book_order_id")
+  title                    String   @db.VarChar(255)
+  fullStoryJson            Json     @map("full_story_json")
+  wordCount                Int?     @map("word_count")
+  generationPrompt         String?  @map("generation_prompt") @db.Text
+  geminiRequestId          String?  @map("gemini_request_id") @db.VarChar(255)
+  contentModerationPassed  Boolean  @default(false) @map("content_moderation_passed")
+  moderationFlags          Json?    @map("moderation_flags")
+  createdAt                DateTime @default(now()) @map("created_at")
+
+  bookOrder  BookOrder   @relation(fields: [bookOrderId], references: [id], onDelete: Cascade)
+  storyPages StoryPage[]
+
+  @@map("generated_stories")
+}
+
+model StoryPage {
+  id          String   @id @default(uuid())
+  storyId     String   @map("story_id")
+  pageNumber  Int      @map("page_number")
+  pageText    String   @map("page_text") @db.Text
+  imagePrompt String   @map("image_prompt") @db.Text
+  wordCount   Int?     @map("word_count")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  story           GeneratedStory   @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  generatedImages GeneratedImage[]
+
+  @@unique([storyId, pageNumber])
+  @@map("story_pages")
+}
+
+model GeneratedImage {
+  id                      String   @id @default(uuid())
+  bookOrderId             String   @map("book_order_id")
+  storyPageId             String?  @map("story_page_id")
+  pageNumber              Int      @map("page_number")
+  imageUrl                String   @map("image_url") @db.VarChar(512)
+  thumbnailUrl            String?  @map("thumbnail_url") @db.VarChar(512)
+  generationPrompt        String   @map("generation_prompt") @db.Text
+  geminiRequestId         String?  @map("gemini_request_id") @db.VarChar(255)
+  width                   Int      @default(1024)
+  height                  Int      @default(1024)
+  fileSizeBytes           Int?     @map("file_size_bytes")
+  contentModerationPassed Boolean  @default(false) @map("content_moderation_passed")
+  moderationFlags         Json?    @map("moderation_flags")
+  retryCount              Int      @default(0) @map("retry_count")
+  createdAt               DateTime @default(now()) @map("created_at")
+
+  bookOrder BookOrder  @relation(fields: [bookOrderId], references: [id], onDelete: Cascade)
+  storyPage StoryPage? @relation(fields: [storyPageId], references: [id])
+
+  @@map("generated_images")
+}
+
+model GeneratedPdf {
+  id               String    @id @default(uuid())
+  bookOrderId      String    @unique @map("book_order_id")
+  pdfUrl           String    @map("pdf_url") @db.VarChar(512)
+  fileSizeBytes    Int?      @map("file_size_bytes")
+  pageCount        Int?      @map("page_count")
+  generatedAt      DateTime  @default(now()) @map("generated_at")
+  expiresAt        DateTime? @map("expires_at")
+  downloadCount    Int       @default(0) @map("download_count")
+  lastDownloadedAt DateTime? @map("last_downloaded_at")
+
+  bookOrder BookOrder @relation(fields: [bookOrderId], references: [id], onDelete: Cascade)
+
+  @@map("generated_pdfs")
+}
+
+model Payment {
+  id                       String    @id @default(uuid())
+  bookOrderId              String    @map("book_order_id")
+  userId                   String    @map("user_id")
+  stripePaymentIntentId    String    @unique @map("stripe_payment_intent_id") @db.VarChar(255)
+  stripeCheckoutSessionId  String?   @map("stripe_checkout_session_id") @db.VarChar(255)
+  amountNzd                Decimal   @map("amount_nzd") @db.Decimal(10, 2)
+  currency                 String    @default("NZD") @db.VarChar(3)
+  status                   String    @default("pending") @db.VarChar(50)
+  productTier              String    @map("product_tier") @db.VarChar(50)
+  paymentMethod            String?   @map("payment_method") @db.VarChar(100)
+  paidAt                   DateTime? @map("paid_at")
+  createdAt                DateTime  @default(now()) @map("created_at")
+
+  user       User       @relation(fields: [userId], references: [id])
+  bookOrder  BookOrder  @relation(fields: [bookOrderId], references: [id], onDelete: Cascade)
+  refunds    Refund[]
+
+  @@map("payments")
+}
+
+model Refund {
+  id              String    @id @default(uuid())
+  paymentId       String    @map("payment_id")
+  stripeRefundId  String    @unique @map("stripe_refund_id") @db.VarChar(255)
+  amountNzd       Decimal   @map("amount_nzd") @db.Decimal(10, 2)
+  reason          String?   @db.Text
+  status          String    @default("pending") @db.VarChar(50)
+  processedAt     DateTime? @map("processed_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  payment Payment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+
+  @@map("refunds")
+}
+
+model PrintOrder {
+  id                   String    @id @default(uuid())
+  bookOrderId          String    @map("book_order_id")
+  paymentId            String?   @map("payment_id")
+  externalOrderId      String?   @map("external_order_id") @db.VarChar(255)
+  productType          String    @map("product_type") @db.VarChar(50)
+  status               String    @default("submitted") @db.VarChar(50)
+  shippingAddressLine1 String    @map("shipping_address_line1") @db.VarChar(255)
+  shippingAddressLine2 String?   @map("shipping_address_line2") @db.VarChar(255)
+  shippingCity         String    @map("shipping_city") @db.VarChar(100)
+  shippingPostcode     String    @map("shipping_postcode") @db.VarChar(20)
+  shippingCountry      String    @default("New Zealand") @map("shipping_country") @db.VarChar(100)
+  recipientName        String    @map("recipient_name") @db.VarChar(255)
+  recipientEmail       String?   @map("recipient_email") @db.VarChar(255)
+  recipientPhone       String?   @map("recipient_phone") @db.VarChar(20)
+  trackingNumber       String?   @map("tracking_number") @db.VarChar(255)
+  estimatedDelivery    DateTime? @map("estimated_delivery") @db.Date
+  shippedAt            DateTime? @map("shipped_at")
+  deliveredAt          DateTime? @map("delivered_at")
+  createdAt            DateTime  @default(now()) @map("created_at")
+
+  bookOrder BookOrder @relation(fields: [bookOrderId], references: [id], onDelete: Cascade)
+
+  @@map("print_orders")
+}
+
+model ModerationReview {
+  id                    String    @id @default(uuid())
+  bookOrderId           String    @map("book_order_id")
+  reviewType            String    @map("review_type") @db.VarChar(50)
+  contentId             String    @map("content_id")
+  automatedResult       Json?     @map("automated_result")
+  requiresManualReview  Boolean   @default(false) @map("requires_manual_review")
+  reviewerUserId        String?   @map("reviewer_user_id")
+  reviewStatus          String?   @map("review_status") @db.VarChar(50)
+  reviewerNotes         String?   @map("reviewer_notes") @db.Text
+  reviewedAt            DateTime? @map("reviewed_at")
+  createdAt             DateTime  @default(now()) @map("created_at")
+
+  bookOrder BookOrder @relation(fields: [bookOrderId], references: [id], onDelete: Cascade)
+  reviewer  User?     @relation(fields: [reviewerUserId], references: [id])
+
+  @@map("moderation_reviews")
+}
+
+model PrivacyConsent {
+  id              String   @id @default(uuid())
+  userId          String   @map("user_id")
+  consentType     String   @map("consent_type") @db.VarChar(100)
+  consentText     String   @map("consent_text") @db.Text
+  consentVersion  String   @map("consent_version") @db.VarChar(50)
+  granted         Boolean
+  ipAddress       String?  @map("ip_address") @db.VarChar(45)
+  userAgent       String?  @map("user_agent") @db.Text
+  consentedAt     DateTime @map("consented_at")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("privacy_consents")
+}
+
+model DataDeletionRequest {
+  id          String    @id @default(uuid())
+  userId      String    @map("user_id")
+  requestType String    @map("request_type") @db.VarChar(50)
+  reason      String?   @db.Text
+  status      String    @default("pending") @db.VarChar(50)
+  requestedAt DateTime  @default(now()) @map("requested_at")
+  processedAt DateTime? @map("processed_at")
+  completedAt DateTime? @map("completed_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("data_deletion_requests")
+}
+
+model AuditLog {
+  id           String   @id @default(uuid())
+  userId       String?  @map("user_id")
+  action       String   @db.VarChar(100)
+  resourceType String?  @map("resource_type") @db.VarChar(50)
+  resourceId   String?  @map("resource_id") @db.VarChar(255)
+  ipAddress    String?  @map("ip_address") @db.VarChar(45)
+  userAgent    String?  @map("user_agent") @db.Text
+  result       String?  @db.VarChar(50)
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@map("audit_logs")
+}
