@@ -76,8 +76,11 @@ export async function POST(
     console.log('[mock-payment] Payment created successfully:', payment.id);
 
     // Trigger book processing
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || 'http://localhost:3000';
-    console.log('Triggering processing at:', `${appUrl}/api/books/${book.id}/process`);
+    // Auto-detect the base URL from the request
+    const protocol = req.headers.get('x-forwarded-proto') || 'http';
+    const host = req.headers.get('host') || 'localhost:3000';
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || `${protocol}://${host}`;
+    console.log('[mock-payment] Triggering processing at:', `${appUrl}/api/books/${book.id}/process`);
 
     const processResponse = await fetch(`${appUrl}/api/books/${book.id}/process`, {
       method: 'POST',
