@@ -1,18 +1,16 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { db } from '@/lib/db';
 import sharp from 'sharp';
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { createClient } from '@supabase/supabase-js';
 import type { IllustrationStyle } from '@/types';
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
-const s3Client = new S3Client({
-  region: process.env.AWS_REGION || 'ap-southeast-2',
-  credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',
-  },
-});
+// Use Supabase Storage instead of AWS S3
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+  process.env.SUPABASE_SERVICE_ROLE_KEY || ''
+);
 
 export class ImageGenerationService {
   private model = genAI.getGenerativeModel({
@@ -108,8 +106,9 @@ export class ImageGenerationService {
       // For now, we'll create a placeholder entry
       // TODO: Implement actual image generation when Gemini image API is finalized
 
-      const imageUrl = `https://${process.env.AWS_S3_BUCKET_PDFS}.s3.${process.env.AWS_REGION}.amazonaws.com/${bookOrderId}/page-${page.pageNumber}.png`;
-      const thumbnailUrl = `https://${process.env.AWS_S3_BUCKET_PDFS}.s3.${process.env.AWS_REGION}.amazonaws.com/${bookOrderId}/page-${page.pageNumber}-thumb.png`;
+      const bucketName = process.env.STORAGE_BUCKET_IMAGES || 'generated-images';
+      const imageUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/${bucketName}/${bookOrderId}/page-${page.pageNumber}.png`;
+      const thumbnailUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/${bucketName}/${bookOrderId}/page-${page.pageNumber}-thumb.png`;
 
       await db.generatedImage.create({
         data: {

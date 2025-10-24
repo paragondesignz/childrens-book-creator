@@ -1,15 +1,13 @@
 import PDFDocument from 'pdfkit';
 import { db } from '@/lib/db';
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { createClient } from '@supabase/supabase-js';
 import { Readable } from 'stream';
 
-const s3Client = new S3Client({
-  region: process.env.AWS_REGION || 'ap-southeast-2',
-  credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',
-  },
-});
+// Use Supabase Storage instead of AWS S3
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+  process.env.SUPABASE_SERVICE_ROLE_KEY || ''
+);
 
 export class PdfGenerationService {
   async generatePdf(bookOrderId: string): Promise<void> {
@@ -46,18 +44,27 @@ export class PdfGenerationService {
       // Create PDF
       const pdfBuffer = await this.createPdfBuffer(bookOrder);
 
-      // Upload to S3
-      const pdfKey = `${bookOrderId}/book.pdf`;
-      await s3Client.send(
-        new PutObjectCommand({
-          Bucket: process.env.AWS_S3_BUCKET_PDFS || '',
-          Key: pdfKey,
-          Body: pdfBuffer,
-          ContentType: 'application/pdf',
-        })
-      );
+      // Upload to Supabase Storage
+      const bucketName = process.env.STORAGE_BUCKET_PDFS || 'generated-pdfs';
+      const filePath = `${bookOrderId}/book.pdf`;
 
-      const pdfUrl = `https://${process.env.AWS_S3_BUCKET_PDFS}.s3.${process.env.AWS_REGION}.amazonaws.com/${pdfKey}`;
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from(bucketName)
+        .upload(filePath, pdfBuffer, {
+          contentType: 'application/pdf',
+          upsert: true,
+        });
+
+      if (uploadError) {
+        throw new Error(`Failed to upload PDF: ${uploadError.message}`);
+      }
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from(bucketName)
+        .getPublicUrl(filePath);
+
+      const pdfUrl = publicUrl;
 
       // Save to database
       await db.generatedPdf.create({
