@@ -1,5 +1,9 @@
+// Load environment variables first
+import { config } from 'dotenv';
+config();
+
 import { Worker, Job } from 'bullmq';
-import { redisConnection } from '@/lib/redis';
+import { bullMQConnection } from '@/lib/redis';
 import { createClient } from '@supabase/supabase-js';
 import { StoryGenerationService } from '@/services/storyGeneration.service';
 import { ImageGenerationService } from '@/services/imageGeneration.service';
@@ -138,7 +142,7 @@ export const bookWorker = new Worker<BookJobData>(
     return await processBook(job);
   },
   {
-    connection: redisConnection,
+    connection: bullMQConnection,
     concurrency: 2, // Process up to 2 books simultaneously
     limiter: {
       max: 5, // Maximum 5 jobs

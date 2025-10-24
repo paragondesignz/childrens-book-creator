@@ -1,3 +1,12 @@
+// Load environment variables for worker process
+if (typeof window === 'undefined') {
+  try {
+    require('dotenv').config();
+  } catch (e) {
+    // dotenv not available or already loaded
+  }
+}
+
 import Redis from 'ioredis';
 
 const getRedisUrl = () => {
@@ -8,7 +17,7 @@ const getRedisUrl = () => {
 };
 
 const redisConfig: any = {
-  maxRetriesPerRequest: 3,
+  maxRetriesPerRequest: null, // Required by BullMQ for blocking operations
   enableReadyCheck: true,
 };
 
@@ -22,7 +31,13 @@ if (process.env.REDIS_TLS_ENABLED === 'true') {
 
 export const redis = new Redis(getRedisUrl(), redisConfig);
 
-// Export for BullMQ
+// Export configuration object for BullMQ (it needs the config, not the instance)
+export const bullMQConnection = {
+  url: getRedisUrl(),
+  ...redisConfig,
+};
+
+// Also export redis instance for other uses
 export const redisConnection = redis;
 
 redis.on('error', (error) => {
