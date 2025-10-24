@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import Link from 'next/link';
+import PaymentForm from './PaymentForm';
 
 export default async function CheckoutPage({ params }: { params: { id: string } }) {
   const supabase = createClient();
@@ -142,14 +143,7 @@ export default async function CheckoutPage({ params }: { params: { id: string } 
                   </p>
                 </div>
 
-                <form action={`/api/books/${book.id}/mock-payment`} method="POST">
-                  <button
-                    type="submit"
-                    className="w-full bg-primary text-white px-6 py-3 rounded-lg hover:opacity-90 transition font-semibold"
-                  >
-                    Continue to Processing (Test Mode)
-                  </button>
-                </form>
+                <PaymentForm bookId={book.id} />
 
                 <div className="mt-6 space-y-3 text-sm text-gray-600">
                   <div className="flex items-center gap-2">

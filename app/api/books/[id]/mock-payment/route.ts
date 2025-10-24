@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { redirect } from 'next/navigation';
 
 export async function POST(
   req: NextRequest,
@@ -35,7 +34,11 @@ export async function POST(
       .single();
 
     if (existingPayment) {
-      redirect(`/books/${book.id}/status`);
+      return NextResponse.json({
+        success: true,
+        redirectUrl: `/books/${book.id}/status`,
+        message: 'Payment already exists'
+      });
     }
 
     // Create mock payment record
@@ -78,8 +81,13 @@ export async function POST(
       console.log('Processing triggered successfully');
     }
 
-    // Redirect to status page
-    redirect(`/books/${book.id}/status`);
+    // Return success with redirect URL
+    return NextResponse.json({
+      success: true,
+      redirectUrl: `/books/${book.id}/status`,
+      paymentId: payment.id,
+      bookId: book.id
+    });
   } catch (error) {
     console.error('Mock payment error:', error);
     return NextResponse.json({ error: 'Payment processing failed' }, { status: 500 });
