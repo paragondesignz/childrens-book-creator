@@ -1,11 +1,11 @@
-import * as fal from '@fal-ai/serverless-client';
+import Replicate from 'replicate';
 import sharp from 'sharp';
 import { createClient } from '@supabase/supabase-js';
 import axios from 'axios';
 
-// Configure Fal.ai
-fal.config({
-  credentials: process.env.FAL_API_KEY,
+// Configure Replicate
+const replicate = new Replicate({
+  auth: process.env.REPLICATE_API_TOKEN,
 });
 
 // Lazy initialization to ensure environment variables are loaded
@@ -39,29 +39,33 @@ export class ImageGenerationService {
 
       const prompt = this.buildFrontCoverPrompt(storyTitle, childFirstName, illustrationStyle);
 
-      console.log('Generating front cover...');
+      console.log('Generating front cover with Seedream 4.0...');
       console.log(`Prompt: ${prompt.substring(0, 200)}...`);
 
-      // Generate cover with Flux Kontext
-      const result: any = await fal.subscribe('fal-ai/flux-pro/kontext/text-to-image', {
-        input: {
-          prompt: prompt,
-          image_size: 'square_hd',
-          num_inference_steps: 28,
-          guidance_scale: 3.5,
-          num_images: 1,
-          enable_safety_checker: true,
-          output_format: 'png',
-        },
-        logs: false,
-      });
+      // Generate cover with Seedream 4.0
+      const output: any = await replicate.run(
+        "seedream/seedream-4.0:latest",
+        {
+          input: {
+            prompt: prompt,
+            size: "2K",
+            width: 2048,
+            height: 2048,
+            max_images: 1,
+            image_input: [],
+            aspect_ratio: "1:1",
+            enhance_prompt: true,
+            sequential_image_generation: "disabled"
+          }
+        }
+      );
 
-      if (!result.images || result.images.length === 0) {
-        throw new Error('No cover image generated from Flux');
+      if (!output || (Array.isArray(output) && output.length === 0)) {
+        throw new Error('No cover image generated from Seedream 4.0');
       }
 
-      // Download the generated image
-      const generatedImageUrl = result.images[0].url;
+      // Download the generated image (Replicate returns array of URLs)
+      const generatedImageUrl = Array.isArray(output) ? output[0] : output;
       const imageResponse = await axios.get(generatedImageUrl, { responseType: 'arraybuffer' });
       const imageBuffer = Buffer.from(imageResponse.data);
 
@@ -115,8 +119,8 @@ export class ImageGenerationService {
           image_url: imageUrl,
           thumbnail_url: thumbnailUrl,
           generation_prompt: prompt,
-          width: 1024,
-          height: 1024,
+          width: 2048,
+          height: 2048,
           content_moderation_passed: false,
           moderation_flags: {},
         })
@@ -149,29 +153,33 @@ export class ImageGenerationService {
 
       const prompt = this.buildBackCoverPrompt(storyTitle, childFirstName, storySummary, illustrationStyle);
 
-      console.log('Generating back cover...');
+      console.log('Generating back cover with Seedream 4.0...');
       console.log(`Prompt: ${prompt.substring(0, 200)}...`);
 
-      // Generate cover with Flux Kontext
-      const result: any = await fal.subscribe('fal-ai/flux-pro/kontext/text-to-image', {
-        input: {
-          prompt: prompt,
-          image_size: 'square_hd',
-          num_inference_steps: 28,
-          guidance_scale: 3.5,
-          num_images: 1,
-          enable_safety_checker: true,
-          output_format: 'png',
-        },
-        logs: false,
-      });
+      // Generate cover with Seedream 4.0
+      const output: any = await replicate.run(
+        "seedream/seedream-4.0:latest",
+        {
+          input: {
+            prompt: prompt,
+            size: "2K",
+            width: 2048,
+            height: 2048,
+            max_images: 1,
+            image_input: [],
+            aspect_ratio: "1:1",
+            enhance_prompt: true,
+            sequential_image_generation: "disabled"
+          }
+        }
+      );
 
-      if (!result.images || result.images.length === 0) {
-        throw new Error('No back cover image generated from Flux');
+      if (!output || (Array.isArray(output) && output.length === 0)) {
+        throw new Error('No back cover image generated from Seedream 4.0');
       }
 
-      // Download the generated image
-      const generatedImageUrl = result.images[0].url;
+      // Download the generated image (Replicate returns array of URLs)
+      const generatedImageUrl = Array.isArray(output) ? output[0] : output;
       const imageResponse = await axios.get(generatedImageUrl, { responseType: 'arraybuffer' });
       const imageBuffer = Buffer.from(imageResponse.data);
 
@@ -225,8 +233,8 @@ export class ImageGenerationService {
           image_url: imageUrl,
           thumbnail_url: thumbnailUrl,
           generation_prompt: prompt,
-          width: 1024,
-          height: 1024,
+          width: 2048,
+          height: 2048,
           content_moderation_passed: false,
           moderation_flags: {},
         })
@@ -303,29 +311,33 @@ export class ImageGenerationService {
       const supabase = getSupabase();
       const prompt = this.buildImagePrompt(storyPage, illustrationStyle, childFirstName);
 
-      console.log(`Generating image for page ${storyPage.page_number}...`);
+      console.log(`Generating image for page ${storyPage.page_number} with Seedream 4.0...`);
       console.log(`Prompt: ${prompt.substring(0, 200)}...`);
 
-      // Generate image with Flux Kontext (designed for flawless typography)
-      const result: any = await fal.subscribe('fal-ai/flux-pro/kontext/text-to-image', {
-        input: {
-          prompt: prompt,
-          image_size: 'square_hd',
-          num_inference_steps: 28,
-          guidance_scale: 3.5,
-          num_images: 1,
-          enable_safety_checker: true,
-          output_format: 'png',
-        },
-        logs: false,
-      });
+      // Generate image with Seedream 4.0
+      const output: any = await replicate.run(
+        "seedream/seedream-4.0:latest",
+        {
+          input: {
+            prompt: prompt,
+            size: "2K",
+            width: 2048,
+            height: 2048,
+            max_images: 1,
+            image_input: [],
+            aspect_ratio: "1:1",
+            enhance_prompt: true,
+            sequential_image_generation: "disabled"
+          }
+        }
+      );
 
-      if (!result.images || result.images.length === 0) {
-        throw new Error('No image generated from Flux');
+      if (!output || (Array.isArray(output) && output.length === 0)) {
+        throw new Error('No image generated from Seedream 4.0');
       }
 
-      // Download the generated image
-      const generatedImageUrl = result.images[0].url;
+      // Download the generated image (Replicate returns array of URLs)
+      const generatedImageUrl = Array.isArray(output) ? output[0] : output;
       const imageResponse = await axios.get(generatedImageUrl, { responseType: 'arraybuffer' });
       const imageBuffer = Buffer.from(imageResponse.data);
 
@@ -379,8 +391,8 @@ export class ImageGenerationService {
           image_url: imageUrl,
           thumbnail_url: thumbnailUrl,
           generation_prompt: prompt,
-          width: 1024,
-          height: 1024,
+          width: 2048,
+          height: 2048,
           content_moderation_passed: false,
           moderation_flags: {},
         })
