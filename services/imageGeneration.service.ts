@@ -1,8 +1,12 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import * as fal from '@fal-ai/serverless-client';
 import sharp from 'sharp';
 import { createClient } from '@supabase/supabase-js';
+import axios from 'axios';
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
+// Configure Fal.ai
+fal.config({
+  credentials: process.env.FAL_API_KEY,
+});
 
 // Lazy initialization to ensure environment variables are loaded
 function getSupabase() {
@@ -21,10 +25,6 @@ interface GenerateImagesParams {
 }
 
 export class ImageGenerationService {
-  // Use gemini-2.5-flash-image for text rendering capabilities
-  private model = genAI.getGenerativeModel({
-    model: 'gemini-2.5-flash-image',
-  });
 
   async generateImagesForStory(params: GenerateImagesParams): Promise<any[]> {
     const { storyId, bookOrderId, pages, illustrationStyle, childFirstName } = params;
@@ -87,28 +87,28 @@ export class ImageGenerationService {
       console.log(`Generating image for page ${storyPage.page_number}...`);
       console.log(`Prompt: ${prompt.substring(0, 200)}...`);
 
-      // Generate image with Gemini
-      const result = await this.model.generateContent({
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        generationConfig: {
-          temperature: 0.7,
-          topP: 0.9,
-          topK: 32,
+      // Generate image with Flux Pro 1.1 (best text rendering)
+      const result: any = await fal.subscribe('fal-ai/flux-pro/v1.1', {
+        input: {
+          prompt: prompt,
+          image_size: 'square',
+          num_inference_steps: 28,
+          guidance_scale: 3.5,
+          num_images: 1,
+          enable_safety_checker: true,
+          output_format: 'png',
         },
+        logs: false,
       });
 
-      const response = await result.response;
-
-      // Extract image from response
-      // Gemini returns images as base64 in the response
-      const imagePart = response.candidates?.[0]?.content?.parts?.find((part: any) => part.inlineData);
-
-      if (!imagePart?.inlineData?.data) {
-        throw new Error('No image data received from Gemini');
+      if (!result.images || result.images.length === 0) {
+        throw new Error('No image generated from Flux');
       }
 
-      // Convert base64 to buffer
-      const imageBuffer = Buffer.from(imagePart.inlineData.data, 'base64');
+      // Download the generated image
+      const imageUrl = result.images[0].url;
+      const imageResponse = await axios.get(imageUrl, { responseType: 'arraybuffer' });
+      const imageBuffer = Buffer.from(imageResponse.data);
 
       // Generate thumbnail
       const thumbnail = await sharp(imageBuffer)
@@ -182,33 +182,23 @@ export class ImageGenerationService {
 
   private buildImagePrompt(storyPage: any, illustrationStyle: string, childFirstName: string): string {
     const styleGuides: Record<string, string> = {
-      'watercolour': 'Soft watercolor style with gentle brush strokes and translucent colors',
-      'digital-art': 'Modern digital art style with vibrant colors and smooth gradients',
-      'cartoon': 'Fun cartoon style with bold outlines and bright, cheerful colors',
-      'storybook-classic': 'Classic storybook illustration style, timeless and warm',
-      'modern-minimal': 'Clean, modern minimal style with simple shapes and soft colors',
+      'watercolour': 'soft watercolor painting style with gentle brushstrokes',
+      'digital-art': 'vibrant digital illustration with smooth colors',
+      'cartoon': 'playful cartoon style with bold outlines and bright colors',
+      'storybook-classic': 'classic children storybook illustration, warm and timeless',
+      'modern-minimal': 'clean modern illustration with simple shapes',
     };
 
     const styleGuide = styleGuides[illustrationStyle] || styleGuides['watercolour'];
 
-    let prompt = `Create a professional children's book page in ${illustrationStyle} style.\n\n`;
-
-    prompt += `STORY TEXT TO INCLUDE:\n`;
-    prompt += `"${storyPage.page_text}"\n\n`;
-
-    prompt += `Please render this text directly on the illustration with professional children's book graphic design. Choose the best font, size, color, placement, and styling to make it beautiful and readable. The text and illustration should work together harmoniously like a professionally designed picture book.\n\n`;
-
-    prompt += `ILLUSTRATION STYLE: ${styleGuide}\n\n`;
-
-    prompt += `SCENE: ${storyPage.image_prompt}\n`;
-    prompt += `The illustration must show ${childFirstName}. Maintain consistent character appearance throughout.\n\n`;
-
-    prompt += `REQUIREMENTS:\n`;
-    prompt += `- Professional children's book quality\n`;
-    prompt += `- Safe, age-appropriate content\n`;
-    prompt += `- Bright, inviting colors\n`;
-    prompt += `- Square format (1024x1024)\n`;
-    prompt += `- High quality suitable for printing at 300 DPI\n`;
+    // Flux works best with clear, descriptive prompts that specify exact text
+    let prompt = `A professional children's book page illustration showing: ${storyPage.image_prompt}. `;
+    prompt += `The illustration features ${childFirstName}, an 8-year-old child. `;
+    prompt += `Style: ${styleGuide}. `;
+    prompt += `The image includes clearly readable text overlay that says: "${storyPage.page_text}". `;
+    prompt += `The text is rendered in a clean, child-friendly font, positioned at the bottom third of the image with a subtle semi-transparent white background for readability. `;
+    prompt += `The text is perfectly legible, professional typography suitable for a children's book. `;
+    prompt += `Bright, inviting colors. Safe, age-appropriate content. High quality professional children's book illustration.`;
 
     return prompt;
   }
