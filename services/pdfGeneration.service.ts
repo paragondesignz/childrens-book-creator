@@ -128,8 +128,14 @@ export class PDFGenerationService {
       doc.on('error', reject);
 
       try {
-        // Cover page
-        this.addCoverPage(doc, data.title);
+        // Front Cover (page_number = 0)
+        const frontCover = data.images.find((img: any) => img.page_number === 0);
+        if (frontCover?.image_url) {
+          await this.addImagePage(doc, frontCover.image_url, 'front cover');
+        } else {
+          // Fallback to text-only cover
+          this.addCoverPage(doc, data.title);
+        }
 
         // Story pages - add full-page images (text is already rendered on images)
         for (let i = 0; i < data.pages.length; i++) {
@@ -145,7 +151,7 @@ export class PDFGenerationService {
               const imageBuffer = Buffer.from(response.data);
 
               // Add image as full-page with small margins
-              // The image already contains the story text rendered by Gemini
+              // The image already contains the story text rendered by Flux
               const pageWidth = 612;
               const pageHeight = 792;
               const margin = 30;
@@ -177,15 +183,45 @@ export class PDFGenerationService {
           }
         }
 
-        // Back cover
-        doc.addPage();
-        this.addBackCover(doc);
+        // Back Cover (page_number = 16)
+        const backCover = data.images.find((img: any) => img.page_number === 16);
+        if (backCover?.image_url) {
+          doc.addPage();
+          await this.addImagePage(doc, backCover.image_url, 'back cover');
+        } else {
+          // Fallback to text-only back cover
+          doc.addPage();
+          this.addBackCover(doc);
+        }
 
         doc.end();
       } catch (error) {
         reject(error);
       }
     });
+  }
+
+  private async addImagePage(doc: PDFKit.PDFDocument, imageUrl: string, pageType: string): Promise<void> {
+    try {
+      const response = await axios.get(imageUrl, { responseType: 'arraybuffer' });
+      const imageBuffer = Buffer.from(response.data);
+
+      // Add image as full-bleed (no margins for covers)
+      const pageWidth = 612;
+      const pageHeight = 792;
+
+      doc.image(imageBuffer, 0, 0, {
+        width: pageWidth,
+        height: pageHeight,
+        align: 'center',
+        valign: 'center',
+      });
+
+      console.log(`Added ${pageType} image to PDF`);
+    } catch (error) {
+      console.error(`Failed to load ${pageType} image:`, error);
+      throw error;
+    }
   }
 
   private addCoverPage(doc: PDFKit.PDFDocument, title: string): void {
