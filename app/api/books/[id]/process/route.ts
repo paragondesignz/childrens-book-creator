@@ -1,6 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 
+// Import the processing function to call it directly
+async function processBookOrder(bookOrderId: string) {
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || 'http://localhost:3000';
+
+  // Call the cron endpoint directly (serverless function)
+  const response = await fetch(`${appUrl}/api/cron/process-books`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ bookOrderId }),
+  });
+
+  return response.json();
+}
+
 export async function POST(
   req: NextRequest,
   { params }: { params: { id: string } }
@@ -56,14 +70,17 @@ export async function POST(
     }
 
     console.log('[process] Book status updated to processing');
-    console.log('[process] Book will be processed by cron job within 5 minutes');
+    console.log('[process] Triggering immediate processing...');
 
-    // Note: The actual processing is handled by /api/cron/process-books
-    // which runs every 5 minutes via Vercel Cron (see vercel.json)
-    // This is simpler and more reliable than fire-and-forget HTTP calls
+    // Trigger processing immediately (don't wait for cron)
+    // This is async but we don't await - let it run in background
+    processBookOrder(book.id).catch(error => {
+      console.error('[process] Background processing error:', error);
+      // The cron job will pick it up as a backup if this fails
+    });
 
     return NextResponse.json({
-      message: 'Book processing queued - will start within 5 minutes',
+      message: 'Book processing started',
       bookId: book.id,
       status: 'processing',
     });
