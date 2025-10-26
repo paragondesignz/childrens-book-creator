@@ -3,10 +3,18 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import Image from 'next/image';
 
 interface StatusMonitorProps {
   bookId: string;
   initialStatus: string;
+}
+
+interface GeneratedImage {
+  id: string;
+  page_number: number;
+  thumbnail_url: string;
+  image_url: string;
 }
 
 const STATUS_STEPS = [
@@ -21,12 +29,28 @@ export function StatusMonitor({ bookId, initialStatus }: StatusMonitorProps) {
   const router = useRouter();
   const [status, setStatus] = useState(initialStatus);
   const [error, setError] = useState<string | null>(null);
+  const [generatedImages, setGeneratedImages] = useState<GeneratedImage[]>([]);
 
   useEffect(() => {
     const supabase = createClient();
 
-    // Set up real-time subscription
-    const channel = supabase
+    // Fetch existing images on mount
+    const fetchExistingImages = async () => {
+      const { data } = await supabase
+        .from('generated_images')
+        .select('id, page_number, thumbnail_url, image_url')
+        .eq('book_order_id', bookId)
+        .order('page_number', { ascending: true });
+
+      if (data) {
+        setGeneratedImages(data);
+      }
+    };
+
+    fetchExistingImages();
+
+    // Set up real-time subscription for book status
+    const bookChannel = supabase
       .channel(`book-${bookId}`)
       .on(
         'postgres_changes',
@@ -52,6 +76,31 @@ export function StatusMonitor({ bookId, initialStatus }: StatusMonitorProps) {
       )
       .subscribe();
 
+    // Set up real-time subscription for generated images
+    const imagesChannel = supabase
+      .channel(`images-${bookId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'generated_images',
+          filter: `book_order_id=eq.${bookId}`,
+        },
+        (payload) => {
+          const newImage = payload.new as GeneratedImage;
+          setGeneratedImages((prev) => {
+            // Check if image already exists
+            if (prev.some((img) => img.id === newImage.id)) {
+              return prev;
+            }
+            // Add new image and sort by page number
+            return [...prev, newImage].sort((a, b) => a.page_number - b.page_number);
+          });
+        }
+      )
+      .subscribe();
+
     // Fallback: Poll every 5 seconds if realtime doesn't work
     const pollInterval = setInterval(async () => {
       const { data: book } = await supabase
@@ -73,10 +122,22 @@ export function StatusMonitor({ bookId, initialStatus }: StatusMonitorProps) {
           clearInterval(pollInterval);
         }
       }
+
+      // Also poll for new images
+      const { data: images } = await supabase
+        .from('generated_images')
+        .select('id, page_number, thumbnail_url, image_url')
+        .eq('book_order_id', bookId)
+        .order('page_number', { ascending: true });
+
+      if (images) {
+        setGeneratedImages(images);
+      }
     }, 5000);
 
     return () => {
-      channel.unsubscribe();
+      bookChannel.unsubscribe();
+      imagesChannel.unsubscribe();
       clearInterval(pollInterval);
     };
   }, [bookId, router]);
@@ -159,6 +220,59 @@ export function StatusMonitor({ bookId, initialStatus }: StatusMonitorProps) {
               <p className="font-semibold text-green-900">Your book is ready!</p>
               <p className="text-sm text-green-800">Redirecting to preview...</p>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Generated Images Preview */}
+      {generatedImages.length > 0 && (
+        <div className="mt-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">
+              Illustrations ({generatedImages.length} of 15)
+            </h3>
+            {generatedImages.length < 15 && (
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <div className="w-2 h-2 bg-primary rounded-full animate-pulse" />
+                <span>Generating...</span>
+              </div>
+            )}
+          </div>
+          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
+            {generatedImages.map((image, index) => (
+              <div
+                key={image.id}
+                className="relative aspect-square rounded-lg overflow-hidden border-2 border-gray-200 bg-gray-100 animate-fadeIn"
+                style={{ animationDelay: `${index * 100}ms` }}
+              >
+                <Image
+                  src={image.thumbnail_url || image.image_url}
+                  alt={`Page ${image.page_number}`}
+                  fill
+                  className="object-cover"
+                  sizes="(max-width: 640px) 33vw, (max-width: 768px) 25vw, 20vw"
+                />
+                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent px-2 py-1">
+                  <span className="text-white text-xs font-medium">
+                    Page {image.page_number}
+                  </span>
+                </div>
+              </div>
+            ))}
+            {/* Placeholder for remaining images */}
+            {Array.from({ length: 15 - generatedImages.length }).map((_, i) => (
+              <div
+                key={`placeholder-${i}`}
+                className="relative aspect-square rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 flex items-center justify-center"
+              >
+                <div className="text-center">
+                  <svg className="w-8 h-8 mx-auto text-gray-400 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  <span className="text-xs text-gray-400">{generatedImages.length + i + 1}</span>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}
