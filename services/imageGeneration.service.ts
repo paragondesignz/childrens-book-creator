@@ -106,8 +106,8 @@ export class ImageGenerationService {
       }
 
       // Download the generated image
-      const imageUrl = result.images[0].url;
-      const imageResponse = await axios.get(imageUrl, { responseType: 'arraybuffer' });
+      const generatedImageUrl = result.images[0].url;
+      const imageResponse = await axios.get(generatedImageUrl, { responseType: 'arraybuffer' });
       const imageBuffer = Buffer.from(imageResponse.data);
 
       // Generate thumbnail
