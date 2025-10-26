@@ -71,28 +71,23 @@ export async function POST(
 
     console.log('[process] Book status updated to processing');
 
-    // On production (Vercel), serverless functions can't run background tasks
-    // The cron job (runs every 5 minutes) will pick up this book and process it
-    // On local development, we can trigger immediately for faster testing
+    // Trigger processing immediately in background (fire-and-forget)
+    // If it times out on Vercel, the cron job will resume from where it left off
     const isProduction = process.env.VERCEL === '1' || process.env.NODE_ENV === 'production';
 
-    if (!isProduction) {
-      console.log('[process] Local development - triggering immediate processing...');
-      // Trigger processing immediately (don't wait for cron)
-      processBookOrder(book.id).catch(error => {
-        console.error('[process] Background processing error:', error);
-      });
-    } else {
-      console.log('[process] Production mode - processing will be handled by cron job (runs every 5 min)');
-    }
+    console.log(`[process] Triggering immediate background processing...`);
+
+    // Fire-and-forget: trigger processing but don't wait for response
+    // This starts the generation immediately without blocking the HTTP response
+    processBookOrder(book.id).catch(error => {
+      console.error('[process] Background processing error (will be retried by cron):', error);
+    });
 
     return NextResponse.json({
-      message: isProduction
-        ? 'Book processing queued - generation takes 10-20 minutes. You\'ll receive an email when complete.'
-        : 'Book processing started',
+      message: 'Book processing started - generation takes 10-20 minutes. You\'ll receive an email when complete.',
       bookId: book.id,
       status: 'processing',
-      estimatedTimeMinutes: isProduction ? 15 : null,
+      estimatedTimeMinutes: 15,
     });
   } catch (error) {
     console.error('[process] Process book error:', error);
