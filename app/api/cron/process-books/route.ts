@@ -58,7 +58,8 @@ async function processBookOrder(bookOrderId: string) {
     console.log(`[process-books] Already done - Story: ${!!existingStory}, Images: ${imageCount}/15, PDF: ${!!existingPdf}`);
 
     // Step 1: Generate Story (if not already done)
-    let generatedStory = existingStory;
+    let generatedStory: { id: string; title: string; pages: any[] } | null = null;
+
     if (!existingStory) {
       console.log(`[process-books] Generating story for ${bookOrder.child_first_name}...`);
       await supabase
@@ -80,9 +81,22 @@ async function processBookOrder(bookOrderId: string) {
         pets: bookOrder.pets || [],
       });
 
-      console.log(`[process-books] Story generated: ${generatedStory.title}`);
+      console.log(`[process-books] Story generated: ${generatedStory?.title || 'Unknown'}`);
     } else {
       console.log(`[process-books] Story already exists, skipping...`);
+
+      // Fetch story pages for existing story
+      const { data: storyPages } = await supabase
+        .from('story_pages')
+        .select('*')
+        .eq('story_id', existingStory.id)
+        .order('page_number', { ascending: true });
+
+      generatedStory = {
+        id: existingStory.id,
+        title: existingStory.title,
+        pages: storyPages || []
+      };
     }
 
     // Step 2: Generate Images (if not already done)
@@ -109,6 +123,7 @@ async function processBookOrder(bookOrderId: string) {
     }
 
     // Step 3: Generate PDF (if not already done)
+    let pdfResult;
     if (!existingPdf) {
       console.log(`[process-books] Creating PDF...`);
       await supabase
@@ -117,7 +132,7 @@ async function processBookOrder(bookOrderId: string) {
         .eq('id', bookOrderId);
 
       const pdfService = new PDFGenerationService();
-      const pdfResult = await pdfService.generatePDF({
+      pdfResult = await pdfService.generatePDF({
         bookOrderId,
         storyId: generatedStory!.id,
         title: bookOrder.template?.title || `${bookOrder.child_first_name}'s Story`,
@@ -128,6 +143,7 @@ async function processBookOrder(bookOrderId: string) {
       console.log(`[process-books] PDF generated: ${pdfResult.id}`);
     } else {
       console.log(`[process-books] PDF already exists, skipping...`);
+      pdfResult = existingPdf;
     }
 
     // Step 4: Mark as completed
@@ -144,8 +160,8 @@ async function processBookOrder(bookOrderId: string) {
     return {
       success: true,
       bookOrderId,
-      storyId: generatedStory.id,
-      pdfId: pdfResult.id,
+      storyId: generatedStory!.id,
+      pdfId: pdfResult?.id,
     };
   } catch (error: any) {
     console.error(`[process-books] Book processing failed:`, error);
