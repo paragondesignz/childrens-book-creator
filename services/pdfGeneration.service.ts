@@ -175,11 +175,11 @@ export class PDFGenerationService {
           }
         }
 
-        // Back Cover (page_number = 16)
+        // Back Cover (page_number = 16) with programmatic text overlay
         const backCover = data.images.find((img: any) => img.page_number === 16);
         if (backCover?.image_url) {
           doc.addPage();
-          await this.addImagePage(doc, backCover.image_url, 'back cover');
+          await this.addBackCoverWithText(doc, backCover.image_url, data.title);
         } else {
           // Fallback to text-only back cover
           doc.addPage();
@@ -212,6 +212,69 @@ export class PDFGenerationService {
       console.log(`Added ${pageType} image to PDF`);
     } catch (error) {
       console.error(`Failed to load ${pageType} image:`, error);
+      throw error;
+    }
+  }
+
+  private async addBackCoverWithText(doc: PDFKit.PDFDocument, imageUrl: string, bookTitle: string): Promise<void> {
+    try {
+      const response = await axios.get(imageUrl, { responseType: 'arraybuffer' });
+      const imageBuffer = Buffer.from(response.data);
+
+      // Add image as full-bleed
+      const pageWidth = 612;
+      const pageHeight = 792;
+
+      doc.image(imageBuffer, 0, 0, {
+        width: pageWidth,
+        height: pageHeight,
+        align: 'center',
+        valign: 'center',
+      });
+
+      // Add text overlay with semi-transparent background
+      const textMargin = 60;
+      const textWidth = pageWidth - (textMargin * 2);
+
+      // Add semi-transparent white rectangle for text readability
+      doc.save();
+      doc.rect(textMargin, pageHeight / 2 - 100, textWidth, 200)
+        .fillOpacity(0.85)
+        .fill('white');
+      doc.restore();
+
+      // Add summary text
+      doc.fontSize(14)
+        .font('Times-Roman')
+        .fillColor('#000000')
+        .fillOpacity(1)
+        .text(
+          `A personalized adventure created especially for this story.`,
+          textMargin + 20,
+          pageHeight / 2 - 60,
+          {
+            align: 'center',
+            width: textWidth - 40,
+            lineGap: 6,
+          }
+        );
+
+      // Add website or branding at bottom
+      doc.fontSize(10)
+        .fillColor('#666666')
+        .text(
+          'Created with Personalized Children\'s Storybooks',
+          textMargin,
+          pageHeight - 80,
+          {
+            align: 'center',
+            width: textWidth,
+          }
+        );
+
+      console.log('Added back cover with text overlay to PDF');
+    } catch (error) {
+      console.error('Failed to load back cover image:', error);
       throw error;
     }
   }

@@ -469,11 +469,11 @@ export class ImageGenerationService {
 
     const styleGuide = styleGuides[illustrationStyle] || styleGuides['watercolour'];
 
-    // Natural language format
-    let prompt = `A children's book back cover in ${styleGuide} with decorative whimsical illustrations. `;
-    prompt += `In the center is text that reads: "${storySummary}" in clean, readable font. `;
-    prompt += `At the bottom is text that reads: "A personalized adventure created for ${childFirstName}" in smaller elegant font. `;
-    prompt += `Professional book cover quality. Warm, inviting colors. Safe design.`;
+    // Back cover illustration only - text will be added programmatically
+    let prompt = `A beautiful children's book back cover illustration in ${styleGuide}. `;
+    prompt += `Decorative whimsical illustration featuring ${childFirstName}, an 8-year-old child. `;
+    prompt += `Magical, enchanting scene. No text or words. `;
+    prompt += `Professional book cover quality. Warm, inviting colors. Safe, age-appropriate design.`;
 
     return prompt;
   }

@@ -33,7 +33,7 @@ export default async function BookPreviewPage({ params }: { params: { id: string
     redirect(`/books/${book.id}/status`);
   }
 
-  const pdfUrl = book.generated_pdf.storage_url;
+  const pdfUrl = book.generated_pdf.pdf_url;
 
   return (
     <main className="min-h-screen bg-gray-50">
@@ -110,12 +110,18 @@ export default async function BookPreviewPage({ params }: { params: { id: string
               </a>
             </div>
             <div className="relative" style={{ minHeight: '800px' }}>
-              <iframe
-                src={`${pdfUrl}#toolbar=0`}
-                className="w-full"
-                style={{ height: '800px' }}
-                title="Book Preview"
-              />
+              {pdfUrl ? (
+                <iframe
+                  src={pdfUrl}
+                  className="w-full"
+                  style={{ height: '800px' }}
+                  title="Book Preview"
+                />
+              ) : (
+                <div className="flex items-center justify-center h-full text-gray-500">
+                  <p>PDF preview not available</p>
+                </div>
+              )}
             </div>
           </div>
 
