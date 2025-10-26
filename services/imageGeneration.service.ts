@@ -409,13 +409,11 @@ export class ImageGenerationService {
 
     const styleGuide = styleGuides[illustrationStyle] || styleGuides['watercolour'];
 
-    // Flux Kontext is designed for flawless typography - include the text!
-    let prompt = `A professional children's book page illustration. `;
+    // Ideogram format: direct text specification with quotes
+    let prompt = `A professional children's book page illustration in ${styleGuide}. `;
     prompt += `Scene: ${storyPage.image_prompt}. `;
     prompt += `The illustration features ${childFirstName}, an 8-year-old child. `;
-    prompt += `Style: ${styleGuide}. `;
-    prompt += `The words "${storyPage.page_text}" are painted in the bottom third with perfect, legible typography. `;
-    prompt += `The text uses a clean, child-friendly font with excellent readability. `;
+    prompt += `text: "${storyPage.page_text}" in bold, clean, child-friendly font at the bottom. `;
     prompt += `Professional children's book quality. Bright, inviting colors. Safe, age-appropriate content.`;
 
     return prompt;
@@ -432,14 +430,12 @@ export class ImageGenerationService {
 
     const styleGuide = styleGuides[illustrationStyle] || styleGuides['watercolour'];
 
-    let prompt = `A beautiful children's book front cover design. `;
-    prompt += `The title "${storyTitle}" is prominently displayed at the top with large, eye-catching typography. `;
-    prompt += `Below the title, there's an enchanting illustration featuring ${childFirstName}, an 8-year-old child, in a magical, inviting scene that captures the essence of the story. `;
-    prompt += `At the bottom, the text "Starring ${childFirstName}" is displayed in elegant lettering. `;
-    prompt += `Style: ${styleGuide}. `;
-    prompt += `Professional children's book cover quality with perfect, legible typography. `;
-    prompt += `Vibrant, inviting colors that appeal to children. `;
-    prompt += `Award-winning book cover design. Safe, age-appropriate content.`;
+    // Ideogram format: specify text placement clearly
+    let prompt = `A beautiful children's book front cover in ${styleGuide}. `;
+    prompt += `Enchanting illustration featuring ${childFirstName}, an 8-year-old child, in a magical scene. `;
+    prompt += `text: "${storyTitle}" in large, bold, playful font at the top. `;
+    prompt += `text: "Starring ${childFirstName}" in elegant script at the bottom. `;
+    prompt += `Professional children's book cover quality. Vibrant, inviting colors. Award-winning design. Safe content.`;
 
     return prompt;
   }
@@ -455,14 +451,12 @@ export class ImageGenerationService {
 
     const styleGuide = styleGuides[illustrationStyle] || styleGuides['watercolour'];
 
-    let prompt = `A beautiful children's book back cover design. `;
-    prompt += `At the top, a decorative header with small illustrations in ${styleGuide}. `;
-    prompt += `The main text area contains: "${storySummary}". `;
-    prompt += `This text is displayed with perfect, legible typography in a clean, child-friendly font. `;
-    prompt += `At the bottom, smaller text reads "A personalized adventure created for ${childFirstName}". `;
-    prompt += `The background features subtle, whimsical illustrations that complement the front cover. `;
-    prompt += `Professional children's book back cover quality. `;
-    prompt += `Warm, inviting colors. Excellent readability. Safe, age-appropriate design.`;
+    // Ideogram format: clear text placement
+    let prompt = `A children's book back cover in ${styleGuide}. `;
+    prompt += `Decorative header with whimsical illustrations. `;
+    prompt += `text: "${storySummary}" in clean, readable font in the center. `;
+    prompt += `text: "A personalized adventure created for ${childFirstName}" in smaller elegant font at the bottom. `;
+    prompt += `Professional book cover quality. Warm, inviting colors. Safe design.`;
 
     return prompt;
   }
