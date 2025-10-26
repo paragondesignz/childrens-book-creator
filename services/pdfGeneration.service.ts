@@ -76,7 +76,7 @@ export class PDFGenerationService {
         .from('generated_pdfs')
         .insert({
           book_order_id: bookOrderId,
-          storage_url: publicUrl,
+          pdf_url: publicUrl, // Correct field name
           file_size_bytes: pdfBuffer.length,
           page_count: storyPages.length + 2, // +2 for cover and back cover
         })

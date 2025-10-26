@@ -16,9 +16,9 @@ An AI-powered web application that creates personalized illustrated children's s
 - **Frontend**: Next.js 14 (App Router), React 18, TypeScript, Tailwind CSS
 - **Authentication & Database**: Supabase (PostgreSQL + Auth)
 - **AI Generation**: Google Gemini API (2.0 Flash for text, 2.5 Flash for images)
-- **Background Processing**: BullMQ + Redis
+- **Background Processing**: Vercel Cron Jobs (no Redis/BullMQ required)
 - **PDF Generation**: PDFKit
-- **Storage**: AWS S3 / Supabase Storage
+- **Storage**: Supabase Storage (or AWS S3)
 - **Payments**: Stripe
 - **Deployment**: Vercel
 
@@ -29,9 +29,8 @@ An AI-powered web application that creates personalized illustrated children's s
 - Node.js 20+
 - Docker (for local Supabase)
 - Google Gemini API key
-- AWS account (for S3 storage)
-- Stripe account
-- Redis instance
+- Stripe account (for payments)
+- Supabase account (provides database + storage)
 
 ### Installation
 
@@ -72,12 +71,9 @@ supabase db reset
 npm run dev
 ```
 
-8. Start the background worker (in a separate terminal):
-```bash
-npm run worker:dev
-```
+8. Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-9. Open [http://localhost:3000](http://localhost:3000) in your browser.
+**Note**: Background processing uses Vercel Cron in production. For local development, you can manually trigger processing via the `/api/cron/process-books` endpoint.
 
 ## Environment Variables
 
@@ -86,10 +82,10 @@ See `.env.example` for the complete list of required environment variables.
 **Critical variables:**
 - `NEXT_PUBLIC_SUPABASE_URL` - Your Supabase project URL
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY` - Your Supabase anon key
+- `SUPABASE_SERVICE_ROLE_KEY` - Supabase service role key (for server-side operations)
 - `GEMINI_API_KEY` - Google Gemini API key
-- `AWS_ACCESS_KEY_ID` & `AWS_SECRET_ACCESS_KEY` - AWS credentials
 - `STRIPE_SECRET_KEY` - Stripe secret key
-- `REDIS_URL` - Redis connection URL
+- `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` - Stripe publishable key
 
 ## Database Schema
 
@@ -110,7 +106,6 @@ See `supabase/migrations/` for the complete schema.
 ```bash
 # Development
 npm run dev                # Start Next.js dev server
-npm run worker:dev         # Start background worker
 supabase start            # Start local Supabase
 supabase stop             # Stop local Supabase
 
@@ -149,7 +144,7 @@ npm start                 # Start production server
 
 ## Architecture
 
-The application follows a service-oriented architecture:
+The application follows a simplified serverless architecture optimized for Vercel:
 
 ```
 Frontend (Next.js)
@@ -158,10 +153,16 @@ API Routes (Next.js API)
     ↓
 Services Layer (Story, Image, PDF Generation)
     ↓
-Background Workers (BullMQ)
+Vercel Cron (runs every 5 minutes) → Process pending books
     ↓
-External APIs (Gemini, Stripe, S3)
+External APIs (Gemini, Stripe, Supabase Storage)
 ```
+
+**Key Design Decisions:**
+- **No Redis/BullMQ**: Uses Vercel Cron for background processing instead of maintaining a separate queue infrastructure
+- **Serverless-First**: All processing happens within Vercel's serverless functions
+- **Status-Based Processing**: Books marked as "processing" are picked up by the cron job automatically
+- **Simple & Reliable**: Fewer moving parts = easier to maintain and debug
 
 See `CLAUDE.md` for detailed architecture documentation.
 

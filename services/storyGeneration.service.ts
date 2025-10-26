@@ -79,17 +79,13 @@ export class StoryGenerationService {
         throw new Error('Invalid story data received from Gemini');
       }
 
-      // Prepare full text
-      const fullText = storyData.pages.map(p => p.text).join('\n\n');
-
       // Save to database
       const { data: generatedStory, error: storyError } = await supabase
         .from('generated_stories')
         .insert({
           book_order_id: bookOrderId,
           title: storyData.title,
-          full_text: fullText,
-          page_count: storyData.pages.length,
+          full_story_json: storyData, // Store full JSON structure
           word_count: this.calculateWordCount(storyData.pages),
           generation_prompt: prompt,
           content_moderation_passed: false,

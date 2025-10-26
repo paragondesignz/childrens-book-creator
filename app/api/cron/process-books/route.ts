@@ -8,8 +8,8 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
 // This endpoint processes books without requiring Redis/BullMQ
-// Can be called manually or via Vercel Cron Jobs
-// For Vercel Cron, add to vercel.json: { "crons": [{ "path": "/api/cron/process-books", "schedule": "*/5 * * * *" }] }
+// Runs automatically every 5 minutes via Vercel Cron (see vercel.json)
+// Can also be called manually via POST with { bookOrderId: "..." }
 
 export const maxDuration = 300; // 5 minutes (Vercel Pro plan limit)
 export const dynamic = 'force-dynamic';

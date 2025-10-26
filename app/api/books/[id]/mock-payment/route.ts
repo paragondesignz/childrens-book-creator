@@ -75,26 +75,19 @@ export async function POST(
     }
     console.log('[mock-payment] Payment created successfully:', payment.id);
 
-    // Trigger book processing
-    // Auto-detect the base URL from the request
-    const protocol = req.headers.get('x-forwarded-proto') || 'http';
-    const host = req.headers.get('host') || 'localhost:3000';
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || `${protocol}://${host}`;
-    console.log('[mock-payment] Triggering processing at:', `${appUrl}/api/books/${book.id}/process`);
+    // Mark book as ready for processing
+    const { error: statusError } = await supabase
+      .from('book_orders')
+      .update({
+        status: 'processing',
+        processing_started_at: new Date().toISOString()
+      })
+      .eq('id', book.id);
 
-    const processResponse = await fetch(`${appUrl}/api/books/${book.id}/process`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Cookie': req.headers.get('cookie') || '',
-      },
-    });
-
-    if (!processResponse.ok) {
-      const errorText = await processResponse.text();
-      console.error('Failed to trigger processing:', processResponse.status, errorText);
+    if (statusError) {
+      console.error('[mock-payment] Failed to update book status:', statusError);
     } else {
-      console.log('Processing triggered successfully');
+      console.log('[mock-payment] Book marked for processing - cron will handle it within 5 minutes');
     }
 
     // Return success with redirect URL

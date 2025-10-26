@@ -56,29 +56,14 @@ export async function POST(
     }
 
     console.log('[process] Book status updated to processing');
+    console.log('[process] Book will be processed by cron job within 5 minutes');
 
-    // Trigger book generation asynchronously (fire and forget)
-    // This calls the cron endpoint which handles the actual processing
-    const protocol = req.headers.get('x-forwarded-proto') || 'http';
-    const host = req.headers.get('host') || 'localhost:3000';
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || `${protocol}://${host}`;
-
-    console.log('[process] Triggering async processing at:', `${appUrl}/api/cron/process-books`);
-
-    // Fire and forget - don't wait for response
-    fetch(`${appUrl}/api/cron/process-books`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ bookOrderId: book.id }),
-    }).catch(error => {
-      console.error('[process] Failed to trigger async processing:', error);
-      // Error is logged but doesn't affect response to user
-    });
+    // Note: The actual processing is handled by /api/cron/process-books
+    // which runs every 5 minutes via Vercel Cron (see vercel.json)
+    // This is simpler and more reliable than fire-and-forget HTTP calls
 
     return NextResponse.json({
-      message: 'Book processing started',
+      message: 'Book processing queued - will start within 5 minutes',
       bookId: book.id,
       status: 'processing',
     });
