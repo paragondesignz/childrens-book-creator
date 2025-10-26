@@ -197,16 +197,6 @@ export function validateIllustrationStyle(style: any): IllustrationStyle {
 }
 
 /**
- * Validates image generation model
- */
-export const IMAGE_MODELS = ['ideogram', 'seedream'] as const;
-export type ImageModel = typeof IMAGE_MODELS[number];
-
-export function validateImageModel(model: any): ImageModel {
-  return validateEnum(model, 'Image model', IMAGE_MODELS);
-}
-
-/**
  * Sanitizes user input to prevent XSS
  */
 export function sanitizeInput(input: string): string {
@@ -249,9 +239,7 @@ export default {
   validateChildName,
   validateArray,
   validateIllustrationStyle,
-  validateImageModel,
   sanitizeInput,
   validatePagination,
   ILLUSTRATION_STYLES,
-  IMAGE_MODELS,
 };
