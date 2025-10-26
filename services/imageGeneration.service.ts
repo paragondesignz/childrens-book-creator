@@ -52,7 +52,8 @@ export class ImageGenerationService {
           input: {
             prompt: prompt,
             aspect_ratio: "1:1",
-            magic_prompt_option: "On" // Optimizes text rendering
+            style_type: "Design", // Design style for text-heavy compositions
+            magic_prompt_option: "Off" // Don't modify our text specifications
           }
         }
       );
@@ -161,7 +162,8 @@ export class ImageGenerationService {
           input: {
             prompt: prompt,
             aspect_ratio: "1:1",
-            magic_prompt_option: "On" // Optimizes text rendering
+            style_type: "Design", // Design style for text-heavy compositions
+            magic_prompt_option: "Off" // Don't modify our text specifications
           }
         }
       );
@@ -314,7 +316,8 @@ export class ImageGenerationService {
           input: {
             prompt: prompt,
             aspect_ratio: "1:1",
-            magic_prompt_option: "On" // Optimizes text rendering
+            style_type: "Design", // Design style for text-heavy compositions
+            magic_prompt_option: "Off" // Don't modify our text specifications
           }
         }
       );
@@ -409,11 +412,11 @@ export class ImageGenerationService {
 
     const styleGuide = styleGuides[illustrationStyle] || styleGuides['watercolour'];
 
-    // Ideogram format: direct text specification with quotes
-    let prompt = `A professional children's book page illustration in ${styleGuide}. `;
+    // Ideogram format: "The text "content" at position" (from official examples)
+    let prompt = `The text "${storyPage.page_text}" at the bottom in bold, clean, child-friendly font. `;
+    prompt += `A professional children's book page illustration in ${styleGuide}. `;
     prompt += `Scene: ${storyPage.image_prompt}. `;
     prompt += `The illustration features ${childFirstName}, an 8-year-old child. `;
-    prompt += `text: "${storyPage.page_text}" in bold, clean, child-friendly font at the bottom. `;
     prompt += `Professional children's book quality. Bright, inviting colors. Safe, age-appropriate content.`;
 
     return prompt;
@@ -430,11 +433,11 @@ export class ImageGenerationService {
 
     const styleGuide = styleGuides[illustrationStyle] || styleGuides['watercolour'];
 
-    // Ideogram format: specify text placement clearly
-    let prompt = `A beautiful children's book front cover in ${styleGuide}. `;
+    // Ideogram format: "The text "content" at position" (from official examples)
+    let prompt = `The text "${storyTitle}" at the top in large, bold, playful font. `;
+    prompt += `The text "Starring ${childFirstName}" at the bottom in elegant script. `;
+    prompt += `A beautiful children's book front cover in ${styleGuide}. `;
     prompt += `Enchanting illustration featuring ${childFirstName}, an 8-year-old child, in a magical scene. `;
-    prompt += `text: "${storyTitle}" in large, bold, playful font at the top. `;
-    prompt += `text: "Starring ${childFirstName}" in elegant script at the bottom. `;
     prompt += `Professional children's book cover quality. Vibrant, inviting colors. Award-winning design. Safe content.`;
 
     return prompt;
@@ -451,11 +454,11 @@ export class ImageGenerationService {
 
     const styleGuide = styleGuides[illustrationStyle] || styleGuides['watercolour'];
 
-    // Ideogram format: clear text placement
-    let prompt = `A children's book back cover in ${styleGuide}. `;
+    // Ideogram format: "The text "content" at position" (from official examples)
+    let prompt = `The text "${storySummary}" in the center in clean, readable font. `;
+    prompt += `The text "A personalized adventure created for ${childFirstName}" at the bottom in smaller elegant font. `;
+    prompt += `A children's book back cover in ${styleGuide}. `;
     prompt += `Decorative header with whimsical illustrations. `;
-    prompt += `text: "${storySummary}" in clean, readable font in the center. `;
-    prompt += `text: "A personalized adventure created for ${childFirstName}" in smaller elegant font at the bottom. `;
     prompt += `Professional book cover quality. Warm, inviting colors. Safe design.`;
 
     return prompt;
