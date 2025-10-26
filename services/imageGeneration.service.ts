@@ -41,30 +41,24 @@ export class ImageGenerationService {
 
       const prompt = this.buildFrontCoverPrompt(storyTitle, childFirstName, illustrationStyle);
 
-      console.log('Generating front cover with Seedream 4...');
+      console.log('Generating front cover with Ideogram v3 Turbo...');
       console.log(`Prompt: ${prompt.substring(0, 200)}...`);
 
-      // Generate cover with Seedream 4
+      // Generate cover with Ideogram v3 Turbo (excellent text rendering)
       const replicate = getReplicate();
       const output: any = await replicate.run(
-        "bytedance/seedream-4",
+        "ideogram-ai/ideogram-v3-turbo",
         {
           input: {
             prompt: prompt,
-            size: "2K",
-            width: 2048,
-            height: 2048,
-            max_images: 1,
-            image_input: [],
             aspect_ratio: "1:1",
-            enhance_prompt: true,
-            sequential_image_generation: "disabled"
+            magic_prompt_option: "On" // Optimizes text rendering
           }
         }
       );
 
       if (!output || (Array.isArray(output) && output.length === 0)) {
-        throw new Error('No cover image generated from Seedream 4');
+        throw new Error('No cover image generated from Ideogram v3 Turbo');
       }
 
       // Download the generated image (Replicate returns array of URLs)
@@ -156,30 +150,24 @@ export class ImageGenerationService {
 
       const prompt = this.buildBackCoverPrompt(storyTitle, childFirstName, storySummary, illustrationStyle);
 
-      console.log('Generating back cover with Seedream 4...');
+      console.log('Generating back cover with Ideogram v3 Turbo...');
       console.log(`Prompt: ${prompt.substring(0, 200)}...`);
 
-      // Generate cover with Seedream 4
+      // Generate cover with Ideogram v3 Turbo (excellent text rendering)
       const replicate = getReplicate();
       const output: any = await replicate.run(
-        "bytedance/seedream-4",
+        "ideogram-ai/ideogram-v3-turbo",
         {
           input: {
             prompt: prompt,
-            size: "2K",
-            width: 2048,
-            height: 2048,
-            max_images: 1,
-            image_input: [],
             aspect_ratio: "1:1",
-            enhance_prompt: true,
-            sequential_image_generation: "disabled"
+            magic_prompt_option: "On" // Optimizes text rendering
           }
         }
       );
 
       if (!output || (Array.isArray(output) && output.length === 0)) {
-        throw new Error('No back cover image generated from Seedream 4');
+        throw new Error('No back cover image generated from Ideogram v3 Turbo');
       }
 
       // Download the generated image (Replicate returns array of URLs)
@@ -315,30 +303,24 @@ export class ImageGenerationService {
       const supabase = getSupabase();
       const prompt = this.buildImagePrompt(storyPage, illustrationStyle, childFirstName);
 
-      console.log(`Generating image for page ${storyPage.page_number} with Seedream 4...`);
+      console.log(`Generating image for page ${storyPage.page_number} with Ideogram v3 Turbo...`);
       console.log(`Prompt: ${prompt.substring(0, 200)}...`);
 
-      // Generate image with Seedream 4
+      // Generate image with Ideogram v3 Turbo (excellent text rendering)
       const replicate = getReplicate();
       const output: any = await replicate.run(
-        "bytedance/seedream-4",
+        "ideogram-ai/ideogram-v3-turbo",
         {
           input: {
             prompt: prompt,
-            size: "2K",
-            width: 2048,
-            height: 2048,
-            max_images: 1,
-            image_input: [],
             aspect_ratio: "1:1",
-            enhance_prompt: true,
-            sequential_image_generation: "disabled"
+            magic_prompt_option: "On" // Optimizes text rendering
           }
         }
       );
 
       if (!output || (Array.isArray(output) && output.length === 0)) {
-        throw new Error('No image generated from Seedream 4');
+        throw new Error('No image generated from Ideogram v3 Turbo');
       }
 
       // Download the generated image (Replicate returns array of URLs)
