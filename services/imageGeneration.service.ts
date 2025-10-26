@@ -87,11 +87,11 @@ export class ImageGenerationService {
       console.log(`Generating image for page ${storyPage.page_number}...`);
       console.log(`Prompt: ${prompt.substring(0, 200)}...`);
 
-      // Generate image with Flux Pro 1.1 (best text rendering)
-      const result: any = await fal.subscribe('fal-ai/flux-pro/v1.1', {
+      // Generate image with Flux Kontext (designed for flawless typography)
+      const result: any = await fal.subscribe('fal-ai/flux-pro/kontext/text-to-image', {
         input: {
           prompt: prompt,
-          image_size: 'square',
+          image_size: 'square_hd',
           num_inference_steps: 28,
           guidance_scale: 3.5,
           num_images: 1,
@@ -191,14 +191,14 @@ export class ImageGenerationService {
 
     const styleGuide = styleGuides[illustrationStyle] || styleGuides['watercolour'];
 
-    // Flux works best with clear, descriptive prompts that specify exact text
-    let prompt = `A professional children's book page illustration showing: ${storyPage.image_prompt}. `;
+    // Flux Kontext is designed for flawless typography - include the text!
+    let prompt = `A professional children's book page illustration. `;
+    prompt += `Scene: ${storyPage.image_prompt}. `;
     prompt += `The illustration features ${childFirstName}, an 8-year-old child. `;
     prompt += `Style: ${styleGuide}. `;
-    prompt += `The image includes clearly readable text overlay that says: "${storyPage.page_text}". `;
-    prompt += `The text is rendered in a clean, child-friendly font, positioned at the bottom third of the image with a subtle semi-transparent white background for readability. `;
-    prompt += `The text is perfectly legible, professional typography suitable for a children's book. `;
-    prompt += `Bright, inviting colors. Safe, age-appropriate content. High quality professional children's book illustration.`;
+    prompt += `The words "${storyPage.page_text}" are painted in the bottom third with perfect, legible typography. `;
+    prompt += `The text uses a clean, child-friendly font with excellent readability. `;
+    prompt += `Professional children's book quality. Bright, inviting colors. Safe, age-appropriate content.`;
 
     return prompt;
   }
