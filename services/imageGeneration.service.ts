@@ -191,39 +191,24 @@ export class ImageGenerationService {
 
     const styleGuide = styleGuides[illustrationStyle] || styleGuides['watercolour'];
 
-    let prompt = `Generate a children's book page illustration in ${illustrationStyle} style.\n\n`;
+    let prompt = `Create a professional children's book page in ${illustrationStyle} style.\n\n`;
 
-    prompt += `STORY TEXT TO INCLUDE ON THE IMAGE:\n`;
+    prompt += `STORY TEXT TO INCLUDE:\n`;
     prompt += `"${storyPage.page_text}"\n\n`;
 
-    prompt += `TEXT FORMATTING REQUIREMENTS:\n`;
-    prompt += `- Render the above story text directly on the illustration\n`;
-    prompt += `- Use a clear, readable children's book font (like Comic Sans, Arial Rounded, or similar friendly font)\n`;
-    prompt += `- Font size should be large and easy to read (equivalent to 24-32pt)\n`;
-    prompt += `- Text should be in black or dark color for maximum readability\n`;
-    prompt += `- Position text in the bottom third of the image, leaving top 2/3 for the illustration\n`;
-    prompt += `- Add a subtle white or light-colored semi-transparent background behind the text for readability\n`;
-    prompt += `- Ensure text is left-aligned or centered, with comfortable line spacing\n`;
-    prompt += `- Break text into natural lines (don't exceed 60-70 characters per line)\n\n`;
+    prompt += `Please render this text directly on the illustration with professional children's book graphic design. Choose the best font, size, color, placement, and styling to make it beautiful and readable. The text and illustration should work together harmoniously like a professionally designed picture book.\n\n`;
 
-    prompt += `ILLUSTRATION STYLE:\n`;
-    prompt += `${styleGuide}\n\n`;
+    prompt += `ILLUSTRATION STYLE: ${styleGuide}\n\n`;
 
-    prompt += `SCENE DESCRIPTION:\n`;
-    prompt += `${storyPage.image_prompt}\n`;
-    prompt += `CRITICAL: This illustration must show ${childFirstName}.\n`;
-    prompt += `Character consistency is essential - maintain the same appearance throughout the book.\n\n`;
+    prompt += `SCENE: ${storyPage.image_prompt}\n`;
+    prompt += `The illustration must show ${childFirstName}. Maintain consistent character appearance throughout.\n\n`;
 
-    prompt += `QUALITY REQUIREMENTS:\n`;
-    prompt += `- Professional children's book quality suitable for printing\n`;
+    prompt += `REQUIREMENTS:\n`;
+    prompt += `- Professional children's book quality\n`;
     prompt += `- Safe, age-appropriate content\n`;
-    prompt += `- No scary or frightening elements\n`;
     prompt += `- Bright, inviting colors\n`;
     prompt += `- Square format (1024x1024)\n`;
-    prompt += `- High quality suitable for 300 DPI printing\n`;
-    prompt += `- Composition should leave room for the text at the bottom\n\n`;
-
-    prompt += `The final image should look like a professional children's book page with the illustration and text beautifully integrated together.`;
+    prompt += `- High quality suitable for printing at 300 DPI\n`;
 
     return prompt;
   }

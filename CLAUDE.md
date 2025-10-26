@@ -11,7 +11,7 @@ This is a web application that creates AI-generated personalized children's stor
 - Backend: Next.js API Routes, Node.js 20+, TypeScript
 - Database: PostgreSQL 15+ with Prisma ORM
 - Cache/Queue: Redis 7+ with Bull/BullMQ
-- AI: Google Gemini 2.0 Flash (text), Gemini 2.5 Flash (images)
+- AI: Google Gemini 2.0 Flash (text), Gemini 2.5 Flash Image (images with text rendering)
 - Payment: Stripe
 - PDF Generation: PDFKit
 - Storage: AWS S3 or Google Cloud Storage
@@ -26,7 +26,7 @@ The application follows a service-oriented architecture with clear separation of
 2. **API Gateway Layer**: Next.js API routes handling authentication, validation, rate limiting
 3. **Application Services**:
    - Story Generation Service (Gemini 2.0 Flash)
-   - Image Generation Service (Gemini 2.5 Flash)
+   - Image Generation Service (Gemini 2.5 Flash Image - with text-in-image rendering)
    - PDF Generation Service (PDFKit)
    - Content Moderation Service
    - Payment Processing Service (Stripe)
