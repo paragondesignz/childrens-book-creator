@@ -26,6 +26,225 @@ interface GenerateImagesParams {
 
 export class ImageGenerationService {
 
+  async generateFrontCover(params: {
+    bookOrderId: string;
+    storyTitle: string;
+    childFirstName: string;
+    illustrationStyle: string;
+  }): Promise<any> {
+    const { bookOrderId, storyTitle, childFirstName, illustrationStyle } = params;
+
+    try {
+      const supabase = getSupabase();
+
+      const prompt = this.buildFrontCoverPrompt(storyTitle, childFirstName, illustrationStyle);
+
+      console.log('Generating front cover...');
+      console.log(`Prompt: ${prompt.substring(0, 200)}...`);
+
+      // Generate cover with Flux Kontext
+      const result: any = await fal.subscribe('fal-ai/flux-pro/kontext/text-to-image', {
+        input: {
+          prompt: prompt,
+          image_size: 'square_hd',
+          num_inference_steps: 28,
+          guidance_scale: 3.5,
+          num_images: 1,
+          enable_safety_checker: true,
+          output_format: 'png',
+        },
+        logs: false,
+      });
+
+      if (!result.images || result.images.length === 0) {
+        throw new Error('No cover image generated from Flux');
+      }
+
+      // Download the generated image
+      const generatedImageUrl = result.images[0].url;
+      const imageResponse = await axios.get(generatedImageUrl, { responseType: 'arraybuffer' });
+      const imageBuffer = Buffer.from(imageResponse.data);
+
+      // Generate thumbnail
+      const thumbnail = await sharp(imageBuffer)
+        .resize(256, 256)
+        .toBuffer();
+
+      // Upload to Supabase Storage
+      const imagePath = `${bookOrderId}/cover-front.png`;
+      const thumbnailPath = `${bookOrderId}/cover-front-thumb.png`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('generated-images')
+        .upload(imagePath, imageBuffer, {
+          contentType: 'image/png',
+          upsert: true,
+        });
+
+      if (uploadError) {
+        throw uploadError;
+      }
+
+      const { error: thumbUploadError } = await supabase.storage
+        .from('generated-images')
+        .upload(thumbnailPath, thumbnail, {
+          contentType: 'image/png',
+          upsert: true,
+        });
+
+      if (thumbUploadError) {
+        throw thumbUploadError;
+      }
+
+      // Get public URLs
+      const { data: { publicUrl: imageUrl } } = supabase.storage
+        .from('generated-images')
+        .getPublicUrl(imagePath);
+
+      const { data: { publicUrl: thumbnailUrl } } = supabase.storage
+        .from('generated-images')
+        .getPublicUrl(thumbnailPath);
+
+      // Save to database (page_number = 0 for front cover, story_page_id = null)
+      const { data: generatedImage, error: dbError } = await supabase
+        .from('generated_images')
+        .insert({
+          book_order_id: bookOrderId,
+          story_page_id: null,
+          page_number: 0,
+          image_url: imageUrl,
+          thumbnail_url: thumbnailUrl,
+          generation_prompt: prompt,
+          width: 1024,
+          height: 1024,
+          content_moderation_passed: false,
+          moderation_flags: {},
+        })
+        .select()
+        .single();
+
+      if (dbError) {
+        throw dbError;
+      }
+
+      console.log('Front cover generated successfully');
+      return generatedImage;
+    } catch (error) {
+      console.error('Error generating front cover:', error);
+      throw error;
+    }
+  }
+
+  async generateBackCover(params: {
+    bookOrderId: string;
+    storyTitle: string;
+    childFirstName: string;
+    storySummary: string;
+    illustrationStyle: string;
+  }): Promise<any> {
+    const { bookOrderId, storyTitle, childFirstName, storySummary, illustrationStyle } = params;
+
+    try {
+      const supabase = getSupabase();
+
+      const prompt = this.buildBackCoverPrompt(storyTitle, childFirstName, storySummary, illustrationStyle);
+
+      console.log('Generating back cover...');
+      console.log(`Prompt: ${prompt.substring(0, 200)}...`);
+
+      // Generate cover with Flux Kontext
+      const result: any = await fal.subscribe('fal-ai/flux-pro/kontext/text-to-image', {
+        input: {
+          prompt: prompt,
+          image_size: 'square_hd',
+          num_inference_steps: 28,
+          guidance_scale: 3.5,
+          num_images: 1,
+          enable_safety_checker: true,
+          output_format: 'png',
+        },
+        logs: false,
+      });
+
+      if (!result.images || result.images.length === 0) {
+        throw new Error('No back cover image generated from Flux');
+      }
+
+      // Download the generated image
+      const generatedImageUrl = result.images[0].url;
+      const imageResponse = await axios.get(generatedImageUrl, { responseType: 'arraybuffer' });
+      const imageBuffer = Buffer.from(imageResponse.data);
+
+      // Generate thumbnail
+      const thumbnail = await sharp(imageBuffer)
+        .resize(256, 256)
+        .toBuffer();
+
+      // Upload to Supabase Storage
+      const imagePath = `${bookOrderId}/cover-back.png`;
+      const thumbnailPath = `${bookOrderId}/cover-back-thumb.png`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('generated-images')
+        .upload(imagePath, imageBuffer, {
+          contentType: 'image/png',
+          upsert: true,
+        });
+
+      if (uploadError) {
+        throw uploadError;
+      }
+
+      const { error: thumbUploadError } = await supabase.storage
+        .from('generated-images')
+        .upload(thumbnailPath, thumbnail, {
+          contentType: 'image/png',
+          upsert: true,
+        });
+
+      if (thumbUploadError) {
+        throw thumbUploadError;
+      }
+
+      // Get public URLs
+      const { data: { publicUrl: imageUrl } } = supabase.storage
+        .from('generated-images')
+        .getPublicUrl(imagePath);
+
+      const { data: { publicUrl: thumbnailUrl } } = supabase.storage
+        .from('generated-images')
+        .getPublicUrl(thumbnailPath);
+
+      // Save to database (page_number = 16 for back cover, story_page_id = null)
+      const { data: generatedImage, error: dbError } = await supabase
+        .from('generated_images')
+        .insert({
+          book_order_id: bookOrderId,
+          story_page_id: null,
+          page_number: 16,
+          image_url: imageUrl,
+          thumbnail_url: thumbnailUrl,
+          generation_prompt: prompt,
+          width: 1024,
+          height: 1024,
+          content_moderation_passed: false,
+          moderation_flags: {},
+        })
+        .select()
+        .single();
+
+      if (dbError) {
+        throw dbError;
+      }
+
+      console.log('Back cover generated successfully');
+      return generatedImage;
+    } catch (error) {
+      console.error('Error generating back cover:', error);
+      throw error;
+    }
+  }
+
   async generateImagesForStory(params: GenerateImagesParams): Promise<any[]> {
     const { storyId, bookOrderId, pages, illustrationStyle, childFirstName } = params;
 
@@ -199,6 +418,52 @@ export class ImageGenerationService {
     prompt += `The words "${storyPage.page_text}" are painted in the bottom third with perfect, legible typography. `;
     prompt += `The text uses a clean, child-friendly font with excellent readability. `;
     prompt += `Professional children's book quality. Bright, inviting colors. Safe, age-appropriate content.`;
+
+    return prompt;
+  }
+
+  private buildFrontCoverPrompt(storyTitle: string, childFirstName: string, illustrationStyle: string): string {
+    const styleGuides: Record<string, string> = {
+      'watercolour': 'soft watercolor painting style with gentle brushstrokes',
+      'digital-art': 'vibrant digital illustration with smooth colors',
+      'cartoon': 'playful cartoon style with bold outlines and bright colors',
+      'storybook-classic': 'classic children storybook illustration, warm and timeless',
+      'modern-minimal': 'clean modern illustration with simple shapes',
+    };
+
+    const styleGuide = styleGuides[illustrationStyle] || styleGuides['watercolour'];
+
+    let prompt = `A beautiful children's book front cover design. `;
+    prompt += `The title "${storyTitle}" is prominently displayed at the top with large, eye-catching typography. `;
+    prompt += `Below the title, there's an enchanting illustration featuring ${childFirstName}, an 8-year-old child, in a magical, inviting scene that captures the essence of the story. `;
+    prompt += `At the bottom, the text "Starring ${childFirstName}" is displayed in elegant lettering. `;
+    prompt += `Style: ${styleGuide}. `;
+    prompt += `Professional children's book cover quality with perfect, legible typography. `;
+    prompt += `Vibrant, inviting colors that appeal to children. `;
+    prompt += `Award-winning book cover design. Safe, age-appropriate content.`;
+
+    return prompt;
+  }
+
+  private buildBackCoverPrompt(storyTitle: string, childFirstName: string, storySummary: string, illustrationStyle: string): string {
+    const styleGuides: Record<string, string> = {
+      'watercolour': 'soft watercolor painting style with gentle brushstrokes',
+      'digital-art': 'vibrant digital illustration with smooth colors',
+      'cartoon': 'playful cartoon style with bold outlines and bright colors',
+      'storybook-classic': 'classic children storybook illustration, warm and timeless',
+      'modern-minimal': 'clean modern illustration with simple shapes',
+    };
+
+    const styleGuide = styleGuides[illustrationStyle] || styleGuides['watercolour'];
+
+    let prompt = `A beautiful children's book back cover design. `;
+    prompt += `At the top, a decorative header with small illustrations in ${styleGuide}. `;
+    prompt += `The main text area contains: "${storySummary}". `;
+    prompt += `This text is displayed with perfect, legible typography in a clean, child-friendly font. `;
+    prompt += `At the bottom, smaller text reads "A personalized adventure created for ${childFirstName}". `;
+    prompt += `The background features subtle, whimsical illustrations that complement the front cover. `;
+    prompt += `Professional children's book back cover quality. `;
+    prompt += `Warm, inviting colors. Excellent readability. Safe, age-appropriate design.`;
 
     return prompt;
   }

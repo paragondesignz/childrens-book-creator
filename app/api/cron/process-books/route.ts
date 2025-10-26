@@ -99,10 +99,38 @@ async function processBookOrder(bookOrderId: string) {
       };
     }
 
-    // Step 2: Generate Images (if not already done)
+    // Step 2: Generate Front Cover (if not already done)
+    const { data: existingFrontCover } = await supabase
+      .from('generated_images')
+      .select('id')
+      .eq('book_order_id', bookOrderId)
+      .eq('page_number', 0)
+      .single();
+
+    if (!existingFrontCover) {
+      console.log(`[process-books] Generating front cover...`);
+      await supabase
+        .from('book_orders')
+        .update({ status: 'generating-images' })
+        .eq('id', bookOrderId);
+
+      const imageService = new ImageGenerationService();
+      await imageService.generateFrontCover({
+        bookOrderId,
+        storyTitle: generatedStory!.title,
+        childFirstName: bookOrder.child_first_name,
+        illustrationStyle: bookOrder.illustration_style,
+      });
+
+      console.log(`[process-books] Front cover generated`);
+    } else {
+      console.log(`[process-books] Front cover already exists, skipping...`);
+    }
+
+    // Step 3: Generate Page Images (if not already done)
     let generatedImages = existingImages;
     if (!imageCount || imageCount < 15) {
-      console.log(`[process-books] Generating images (${imageCount || 0}/15 exist)...`);
+      console.log(`[process-books] Generating page images (${imageCount || 0}/15 exist)...`);
       await supabase
         .from('book_orders')
         .update({ status: 'generating-images' })
@@ -117,12 +145,44 @@ async function processBookOrder(bookOrderId: string) {
         childFirstName: bookOrder.child_first_name,
       });
 
-      console.log(`[process-books] ${generatedImages.length} images generated`);
+      console.log(`[process-books] ${generatedImages.length} page images generated`);
     } else {
-      console.log(`[process-books] All images already exist, skipping...`);
+      console.log(`[process-books] All page images already exist, skipping...`);
     }
 
-    // Step 3: Generate PDF (if not already done)
+    // Step 4: Generate Back Cover (if not already done)
+    const { data: existingBackCover } = await supabase
+      .from('generated_images')
+      .select('id')
+      .eq('book_order_id', bookOrderId)
+      .eq('page_number', 16)
+      .single();
+
+    if (!existingBackCover) {
+      console.log(`[process-books] Generating back cover...`);
+
+      // Create a story summary from the first few pages
+      const storySummary = generatedStory!.pages
+        .slice(0, 3)
+        .map((p: any) => p.text)
+        .join(' ')
+        .substring(0, 200) + '...';
+
+      const imageService = new ImageGenerationService();
+      await imageService.generateBackCover({
+        bookOrderId,
+        storyTitle: generatedStory!.title,
+        childFirstName: bookOrder.child_first_name,
+        storySummary,
+        illustrationStyle: bookOrder.illustration_style,
+      });
+
+      console.log(`[process-books] Back cover generated`);
+    } else {
+      console.log(`[process-books] Back cover already exists, skipping...`);
+    }
+
+    // Step 5: Generate PDF (if not already done)
     let pdfResult;
     if (!existingPdf) {
       console.log(`[process-books] Creating PDF...`);
@@ -146,7 +206,7 @@ async function processBookOrder(bookOrderId: string) {
       pdfResult = existingPdf;
     }
 
-    // Step 4: Mark as completed
+    // Step 6: Mark as completed
     await supabase
       .from('book_orders')
       .update({
