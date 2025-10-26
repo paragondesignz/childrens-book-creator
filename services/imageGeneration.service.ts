@@ -412,12 +412,12 @@ export class ImageGenerationService {
 
     const styleGuide = styleGuides[illustrationStyle] || styleGuides['watercolour'];
 
-    // Ideogram format: "The text "content" at position" (from official examples)
-    let prompt = `The text "${storyPage.page_text}" at the bottom in bold, clean, child-friendly font. `;
-    prompt += `A professional children's book page illustration in ${styleGuide}. `;
+    // Natural language format as per Ideogram official documentation
+    let prompt = `A professional children's book page illustration in ${styleGuide}. `;
     prompt += `Scene: ${storyPage.image_prompt}. `;
     prompt += `The illustration features ${childFirstName}, an 8-year-old child. `;
-    prompt += `Professional children's book quality. Bright, inviting colors. Safe, age-appropriate content.`;
+    prompt += `At the bottom of the page is text that reads: "${storyPage.page_text}" in a bold, clean, child-friendly font. `;
+    prompt += `Bright, inviting colors. Safe, age-appropriate content. Professional storybook quality.`;
 
     return prompt;
   }
@@ -433,11 +433,11 @@ export class ImageGenerationService {
 
     const styleGuide = styleGuides[illustrationStyle] || styleGuides['watercolour'];
 
-    // Ideogram format: "The text "content" at position" (from official examples)
-    let prompt = `The text "${storyTitle}" at the top in large, bold, playful font. `;
-    prompt += `The text "Starring ${childFirstName}" at the bottom in elegant script. `;
-    prompt += `A beautiful children's book front cover in ${styleGuide}. `;
-    prompt += `Enchanting illustration featuring ${childFirstName}, an 8-year-old child, in a magical scene. `;
+    // Natural language format with contextual text placement
+    let prompt = `A beautiful children's book front cover in ${styleGuide}. `;
+    prompt += `An enchanting illustration featuring ${childFirstName}, an 8-year-old child, in a magical scene. `;
+    prompt += `At the top of the cover is the title text that reads: "${storyTitle}" in large, bold, playful letters. `;
+    prompt += `At the bottom is text that reads: "Starring ${childFirstName}" in elegant script. `;
     prompt += `Professional children's book cover quality. Vibrant, inviting colors. Award-winning design. Safe content.`;
 
     return prompt;
@@ -454,11 +454,10 @@ export class ImageGenerationService {
 
     const styleGuide = styleGuides[illustrationStyle] || styleGuides['watercolour'];
 
-    // Ideogram format: "The text "content" at position" (from official examples)
-    let prompt = `The text "${storySummary}" in the center in clean, readable font. `;
-    prompt += `The text "A personalized adventure created for ${childFirstName}" at the bottom in smaller elegant font. `;
-    prompt += `A children's book back cover in ${styleGuide}. `;
-    prompt += `Decorative header with whimsical illustrations. `;
+    // Natural language format
+    let prompt = `A children's book back cover in ${styleGuide} with decorative whimsical illustrations. `;
+    prompt += `In the center is text that reads: "${storySummary}" in clean, readable font. `;
+    prompt += `At the bottom is text that reads: "A personalized adventure created for ${childFirstName}" in smaller elegant font. `;
     prompt += `Professional book cover quality. Warm, inviting colors. Safe design.`;
 
     return prompt;
