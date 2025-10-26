@@ -2,10 +2,13 @@ import PDFDocument from 'pdfkit';
 import { createClient } from '@supabase/supabase-js';
 import axios from 'axios';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+// Lazy initialization to ensure environment variables are loaded
+function getSupabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+}
 
 interface GeneratePDFParams {
   bookOrderId: string;
@@ -20,6 +23,7 @@ export class PDFGenerationService {
     const { bookOrderId, storyId, title, pages, images } = params;
 
     try {
+      const supabase = getSupabase();
       console.log('Generating PDF...');
 
       // Fetch story pages from database
@@ -71,20 +75,23 @@ export class PDFGenerationService {
         .from('generated-pdfs')
         .getPublicUrl(filePath);
 
-      // Save to database
+      // Save to database (upsert in case of retry)
       const { data: generatedPdf, error: dbError } = await supabase
         .from('generated_pdfs')
-        .insert({
+        .upsert({
           book_order_id: bookOrderId,
           pdf_url: publicUrl, // Correct field name
           file_size_bytes: pdfBuffer.length,
           page_count: storyPages.length + 2, // +2 for cover and back cover
+        }, {
+          onConflict: 'book_order_id'
         })
         .select()
         .single();
 
       if (dbError) {
-        throw new Error('Failed to save PDF to database');
+        console.error('Database error details:', JSON.stringify(dbError, null, 2));
+        throw new Error(`Failed to save PDF to database: ${dbError.message || JSON.stringify(dbError)}`);
       }
 
       console.log('PDF generated successfully');

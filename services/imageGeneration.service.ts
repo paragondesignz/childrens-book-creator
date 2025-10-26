@@ -4,10 +4,13 @@ import { createClient } from '@supabase/supabase-js';
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+// Lazy initialization to ensure environment variables are loaded
+function getSupabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+}
 
 interface GenerateImagesParams {
   storyId: string;
@@ -26,6 +29,7 @@ export class ImageGenerationService {
     const { storyId, bookOrderId, pages, illustrationStyle, childFirstName } = params;
 
     try {
+      const supabase = getSupabase();
       console.log(`Generating images for ${pages.length} pages...`);
 
       // Fetch story pages from database to get IDs
@@ -76,6 +80,7 @@ export class ImageGenerationService {
     const { bookOrderId, storyPage, illustrationStyle, childFirstName } = params;
 
     try {
+      const supabase = getSupabase();
       const prompt = this.buildImagePrompt(storyPage, illustrationStyle, childFirstName);
 
       console.log(`Generating image for page ${storyPage.page_number}...`);

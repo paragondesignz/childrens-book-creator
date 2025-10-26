@@ -1,11 +1,15 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { createClient } from '@supabase/supabase-js';
 
+// Lazy initialization to ensure environment variables are loaded
+function getSupabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+}
+
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
 
 interface StoryPage {
   pageNumber: number;
@@ -40,6 +44,8 @@ export class StoryGenerationService {
     const { bookOrderId, templateId } = params;
 
     try {
+      const supabase = getSupabase();
+
       // Fetch template if provided
       let template = null;
       if (templateId) {
