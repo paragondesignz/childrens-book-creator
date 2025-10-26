@@ -131,34 +131,42 @@ export class PDFGenerationService {
         // Cover page
         this.addCoverPage(doc, data.title);
 
-        // Story pages - fetch images and add them
+        // Story pages - add full-page images (text is already rendered on images)
         for (let i = 0; i < data.pages.length; i++) {
           const page = data.pages[i];
           const image = data.images.find((img: any) => img.page_number === page.page_number);
 
           doc.addPage();
 
-          // If we have an image, try to fetch and add it
+          // If we have an image, try to fetch and add it as full-page
           if (image?.image_url) {
             try {
               const response = await axios.get(image.image_url, { responseType: 'arraybuffer' });
               const imageBuffer = Buffer.from(response.data);
 
-              // Add image
-              doc.image(imageBuffer, 100, 100, {
-                width: 412,
-                height: 300,
+              // Add image as full-page with small margins
+              // The image already contains the story text rendered by Gemini
+              const pageWidth = 612;
+              const pageHeight = 792;
+              const margin = 30;
+              const imageWidth = pageWidth - (margin * 2);
+              const imageHeight = pageHeight - (margin * 2);
+
+              doc.image(imageBuffer, margin, margin, {
+                width: imageWidth,
+                height: imageHeight,
                 align: 'center',
+                valign: 'center',
               });
 
-              // Add text below image
-              doc.moveDown(20);
-              doc.fontSize(12)
-                .font('Helvetica')
-                .text(page.page_text, 100, 420, {
-                  align: 'left',
-                  width: 412,
-                });
+              // Small page number in corner
+              doc.fontSize(8)
+                .fillColor('#666666')
+                .text(`${page.page_number}`, margin, pageHeight - 20, {
+                  align: 'center',
+                  width: imageWidth,
+                })
+                .fillColor('#000000'); // Reset color
             } catch (imgError) {
               console.error(`Failed to load image for page ${page.page_number}:`, imgError);
               // Fall back to text-only layout
@@ -167,14 +175,6 @@ export class PDFGenerationService {
           } else {
             this.addStoryPage(doc, page, null);
           }
-
-          // Add page number
-          doc.fontSize(10)
-            .font('Helvetica')
-            .text(`${page.page_number}`, 50, 750, {
-              align: 'center',
-              width: 512,
-            });
         }
 
         // Back cover

@@ -21,8 +21,9 @@ interface GenerateImagesParams {
 }
 
 export class ImageGenerationService {
+  // Use gemini-2.5-flash-image for text rendering capabilities
   private model = genAI.getGenerativeModel({
-    model: process.env.GEMINI_IMAGE_MODEL || 'gemini-2.5-flash',
+    model: 'gemini-2.5-flash-image',
   });
 
   async generateImagesForStory(params: GenerateImagesParams): Promise<any[]> {
@@ -84,40 +85,33 @@ export class ImageGenerationService {
       const prompt = this.buildImagePrompt(storyPage, illustrationStyle, childFirstName);
 
       console.log(`Generating image for page ${storyPage.page_number}...`);
+      console.log(`Prompt: ${prompt.substring(0, 200)}...`);
 
-      // Create a simple placeholder image with Sharp
-      // TODO: Replace with actual Gemini image generation when API is available
-      const placeholderImage = await sharp({
-        create: {
-          width: 1024,
-          height: 1024,
-          channels: 4,
-          background: { r: 240, g: 240, b: 255, alpha: 1 }
-        }
-      })
-        .composite([{
-          input: Buffer.from(`
-            <svg width="1024" height="1024">
-              <rect width="1024" height="1024" fill="#f0f0ff"/>
-              <text x="512" y="400" font-family="Arial" font-size="32" text-anchor="middle" fill="#333">
-                Page ${storyPage.page_number}
-              </text>
-              <text x="512" y="450" font-family="Arial" font-size="20" text-anchor="middle" fill="#666">
-                ${childFirstName}'s Adventure
-              </text>
-              <text x="512" y="550" font-family="Arial" font-size="16" text-anchor="middle" fill="#999">
-                Illustration Placeholder
-              </text>
-            </svg>
-          `),
-          top: 0,
-          left: 0,
-        }])
-        .png()
-        .toBuffer();
+      // Generate image with Gemini
+      const result = await this.model.generateContent({
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        generationConfig: {
+          temperature: 0.7,
+          topP: 0.9,
+          topK: 32,
+        },
+      });
+
+      const response = await result.response;
+
+      // Extract image from response
+      // Gemini returns images as base64 in the response
+      const imagePart = response.candidates?.[0]?.content?.parts?.find((part: any) => part.inlineData);
+
+      if (!imagePart?.inlineData?.data) {
+        throw new Error('No image data received from Gemini');
+      }
+
+      // Convert base64 to buffer
+      const imageBuffer = Buffer.from(imagePart.inlineData.data, 'base64');
 
       // Generate thumbnail
-      const thumbnail = await sharp(placeholderImage)
+      const thumbnail = await sharp(imageBuffer)
         .resize(256, 256)
         .toBuffer();
 
@@ -127,7 +121,7 @@ export class ImageGenerationService {
 
       const { error: uploadError } = await supabase.storage
         .from('generated-images')
-        .upload(imagePath, placeholderImage, {
+        .upload(imagePath, imageBuffer, {
           contentType: 'image/png',
           upsert: true,
         });
@@ -197,18 +191,39 @@ export class ImageGenerationService {
 
     const styleGuide = styleGuides[illustrationStyle] || styleGuides['watercolour'];
 
-    let prompt = `Generate a children's book illustration in ${illustrationStyle} style.\n\n`;
-    prompt += `Style guide: ${styleGuide}\n\n`;
+    let prompt = `Generate a children's book page illustration in ${illustrationStyle} style.\n\n`;
+
+    prompt += `STORY TEXT TO INCLUDE ON THE IMAGE:\n`;
+    prompt += `"${storyPage.page_text}"\n\n`;
+
+    prompt += `TEXT FORMATTING REQUIREMENTS:\n`;
+    prompt += `- Render the above story text directly on the illustration\n`;
+    prompt += `- Use a clear, readable children's book font (like Comic Sans, Arial Rounded, or similar friendly font)\n`;
+    prompt += `- Font size should be large and easy to read (equivalent to 24-32pt)\n`;
+    prompt += `- Text should be in black or dark color for maximum readability\n`;
+    prompt += `- Position text in the bottom third of the image, leaving top 2/3 for the illustration\n`;
+    prompt += `- Add a subtle white or light-colored semi-transparent background behind the text for readability\n`;
+    prompt += `- Ensure text is left-aligned or centered, with comfortable line spacing\n`;
+    prompt += `- Break text into natural lines (don't exceed 60-70 characters per line)\n\n`;
+
+    prompt += `ILLUSTRATION STYLE:\n`;
+    prompt += `${styleGuide}\n\n`;
+
+    prompt += `SCENE DESCRIPTION:\n`;
+    prompt += `${storyPage.image_prompt}\n`;
     prompt += `CRITICAL: This illustration must show ${childFirstName}.\n`;
-    prompt += `Character consistency is essential - maintain the same appearance throughout.\n\n`;
-    prompt += `Scene description: ${storyPage.image_prompt}\n\n`;
-    prompt += `Requirements:\n`;
-    prompt += `- Professional children's book quality\n`;
+    prompt += `Character consistency is essential - maintain the same appearance throughout the book.\n\n`;
+
+    prompt += `QUALITY REQUIREMENTS:\n`;
+    prompt += `- Professional children's book quality suitable for printing\n`;
     prompt += `- Safe, age-appropriate content\n`;
     prompt += `- No scary or frightening elements\n`;
     prompt += `- Bright, inviting colors\n`;
-    prompt += `- 1024x1024 resolution\n`;
-    prompt += `- Suitable for printing at 300 DPI\n`;
+    prompt += `- Square format (1024x1024)\n`;
+    prompt += `- High quality suitable for 300 DPI printing\n`;
+    prompt += `- Composition should leave room for the text at the bottom\n\n`;
+
+    prompt += `The final image should look like a professional children's book page with the illustration and text beautifully integrated together.`;
 
     return prompt;
   }
