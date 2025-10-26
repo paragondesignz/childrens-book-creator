@@ -1,5 +1,5 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
 import { createClient } from '@supabase/supabase-js';
+import axios from 'axios';
 
 // Lazy initialization to ensure environment variables are loaded
 function getSupabase() {
@@ -8,8 +8,6 @@ function getSupabase() {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
 }
-
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
 interface StoryPage {
   pageNumber: number;
@@ -36,10 +34,6 @@ interface GenerateStoryParams {
 }
 
 export class StoryGenerationService {
-  private model = genAI.getGenerativeModel({
-    model: process.env.GEMINI_TEXT_MODEL || 'gemini-2.0-flash-exp',
-  });
-
   async generateStory(params: GenerateStoryParams): Promise<any> {
     const { bookOrderId, templateId } = params;
 
@@ -60,29 +54,45 @@ export class StoryGenerationService {
       // Build prompt
       const prompt = this.buildPrompt(params, template);
 
-      console.log('Generating story with Gemini...');
+      console.log('Generating story with GPT-5 via OpenRouter...');
 
-      // Generate story with Gemini
-      const result = await this.model.generateContent({
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        generationConfig: {
+      // Generate story with GPT-5 via OpenRouter
+      const response = await axios.post(
+        'https://openrouter.ai/api/v1/chat/completions',
+        {
+          model: process.env.OPENROUTER_TEXT_MODEL || 'openai/gpt-4o',
+          messages: [
+            {
+              role: 'system',
+              content: 'You are a creative children\'s story writer. Always respond with valid JSON matching the requested format.'
+            },
+            {
+              role: 'user',
+              content: prompt
+            }
+          ],
           temperature: 0.8,
-          maxOutputTokens: 4096,
-          topP: 0.95,
-          topK: 40,
-          responseMimeType: 'application/json',
+          max_tokens: 4096,
+          response_format: { type: 'json_object' }
         },
-      });
+        {
+          headers: {
+            'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+            'Content-Type': 'application/json',
+            'HTTP-Referer': process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
+            'X-Title': 'Children\'s Book Creator'
+          }
+        }
+      );
 
-      const response = await result.response;
-      const text = response.text();
+      const text = response.data.choices[0].message.content;
 
       // Parse JSON response
       const storyData: GeneratedStoryData = JSON.parse(text);
 
       // Validate story data
       if (!storyData.title || !storyData.pages || storyData.pages.length !== 15) {
-        throw new Error('Invalid story data received from Gemini');
+        throw new Error('Invalid story data received from GPT-5');
       }
 
       // Save to database
