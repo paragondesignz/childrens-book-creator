@@ -82,7 +82,7 @@ export class PDFGenerationService {
           book_order_id: bookOrderId,
           pdf_url: publicUrl, // Correct field name
           file_size_bytes: pdfBuffer.length,
-          page_count: storyPages.length + 2, // +2 for cover and back cover
+          page_count: (storyPages.length * 2) + 2, // *2 for text+image per story page, +2 for covers
         }, {
           onConflict: 'book_order_id'
         })
@@ -137,49 +137,41 @@ export class PDFGenerationService {
           this.addCoverPage(doc, data.title);
         }
 
-        // Story pages - add full-page images (text is already rendered on images)
+        // Story pages - alternate text and image pages
+        // For each story page: Left page = text (Baskerville), Right page = full-bleed image
         for (let i = 0; i < data.pages.length; i++) {
           const page = data.pages[i];
           const image = data.images.find((img: any) => img.page_number === page.page_number);
 
+          // Left page: Text only (white background, Baskerville font)
           doc.addPage();
+          this.addTextPage(doc, page);
 
-          // If we have an image, try to fetch and add it as full-page
+          // Right page: Full-bleed image
+          doc.addPage();
           if (image?.image_url) {
             try {
               const response = await axios.get(image.image_url, { responseType: 'arraybuffer' });
               const imageBuffer = Buffer.from(response.data);
 
-              // Add image as full-page with small margins
-              // The image already contains the story text rendered by Flux
+              // Add image as full-bleed (edge to edge)
               const pageWidth = 612;
               const pageHeight = 792;
-              const margin = 30;
-              const imageWidth = pageWidth - (margin * 2);
-              const imageHeight = pageHeight - (margin * 2);
 
-              doc.image(imageBuffer, margin, margin, {
-                width: imageWidth,
-                height: imageHeight,
+              doc.image(imageBuffer, 0, 0, {
+                width: pageWidth,
+                height: pageHeight,
                 align: 'center',
                 valign: 'center',
               });
-
-              // Small page number in corner
-              doc.fontSize(8)
-                .fillColor('#666666')
-                .text(`${page.page_number}`, margin, pageHeight - 20, {
-                  align: 'center',
-                  width: imageWidth,
-                })
-                .fillColor('#000000'); // Reset color
             } catch (imgError) {
               console.error(`Failed to load image for page ${page.page_number}:`, imgError);
-              // Fall back to text-only layout
-              this.addStoryPage(doc, page, null);
+              // Fallback: show placeholder
+              this.addImagePlaceholder(doc, page.page_number);
             }
           } else {
-            this.addStoryPage(doc, page, null);
+            // No image available, show placeholder
+            this.addImagePlaceholder(doc, page.page_number);
           }
         }
 
@@ -246,12 +238,57 @@ export class PDFGenerationService {
       });
   }
 
+  private addTextPage(doc: PDFKit.PDFDocument, page: any): void {
+    // White background with generous margins
+    const margin = 80;
+    const pageWidth = 612;
+    const pageHeight = 792;
+    const textWidth = pageWidth - (margin * 2);
+
+    // Use Baskerville font (elegant serif, perfect for children's books)
+    // PDFKit includes Times-Roman as fallback if Baskerville not available
+    const fontFamily = 'Times-Roman'; // Closest built-in to Baskerville
+
+    // Add story text with comfortable reading size
+    doc.fontSize(16)
+      .font(fontFamily)
+      .fillColor('#000000')
+      .text(page.page_text, margin, 150, {
+        align: 'left',
+        width: textWidth,
+        lineGap: 8,
+      });
+
+    // Small page number at bottom
+    doc.fontSize(10)
+      .fillColor('#999999')
+      .text(`${page.page_number}`, margin, pageHeight - 40, {
+        align: 'center',
+        width: textWidth,
+      });
+  }
+
+  private addImagePlaceholder(doc: PDFKit.PDFDocument, pageNumber: number): void {
+    // Simple placeholder for missing images
+    const pageWidth = 612;
+    const pageHeight = 792;
+
+    doc.fontSize(14)
+      .font('Helvetica')
+      .fillColor('#cccccc')
+      .text(`[Image ${pageNumber}]`, 0, pageHeight / 2 - 20, {
+        align: 'center',
+        width: pageWidth,
+      })
+      .fillColor('#000000');
+  }
+
   private addStoryPage(
     doc: PDFKit.PDFDocument,
     page: any,
     image: any
   ): void {
-    // Add text
+    // Legacy fallback - not used in new alternating layout
     doc.fontSize(14)
       .font('Helvetica')
       .text(page.page_text, 100, 100, {
@@ -259,14 +296,13 @@ export class PDFGenerationService {
         width: 412,
       });
 
-    // Placeholder for illustration
     doc.fontSize(10)
       .fillColor('#cccccc')
       .text('[Illustration]', 100, 400, {
         align: 'center',
         width: 412,
       })
-      .fillColor('#000000'); // Reset color
+      .fillColor('#000000');
   }
 
   private addBackCover(doc: PDFKit.PDFDocument): void {

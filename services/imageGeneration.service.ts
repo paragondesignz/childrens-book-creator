@@ -24,42 +24,36 @@ interface GenerateImagesParams {
   pages: any[];
   illustrationStyle: string;
   childFirstName: string;
+  imageModel?: 'ideogram' | 'seedream'; // Optional model selection
 }
 
+type ImageModel = 'ideogram' | 'seedream';
+
 export class ImageGenerationService {
+  private defaultModel: ImageModel = 'ideogram'; // Default to Ideogram
 
   async generateFrontCover(params: {
     bookOrderId: string;
     storyTitle: string;
     childFirstName: string;
     illustrationStyle: string;
+    imageModel?: ImageModel;
   }): Promise<any> {
-    const { bookOrderId, storyTitle, childFirstName, illustrationStyle } = params;
+    const { bookOrderId, storyTitle, childFirstName, illustrationStyle, imageModel = this.defaultModel } = params;
 
     try {
       const supabase = getSupabase();
 
       const prompt = this.buildFrontCoverPrompt(storyTitle, childFirstName, illustrationStyle);
 
-      console.log('Generating front cover with Ideogram v3 Turbo...');
+      console.log(`Generating front cover with ${imageModel}...`);
       console.log(`Prompt: ${prompt.substring(0, 200)}...`);
 
-      // Generate cover with Ideogram v3 Turbo (excellent text rendering)
-      const replicate = getReplicate();
-      const output: any = await replicate.run(
-        "ideogram-ai/ideogram-v3-turbo",
-        {
-          input: {
-            prompt: prompt,
-            aspect_ratio: "1:1",
-            style_type: "Design", // Design style for text-heavy compositions
-            magic_prompt_option: "Off" // Don't modify our text specifications
-          }
-        }
-      );
+      // Generate cover with selected model
+      const output = await this.generateImageWithModel(prompt, imageModel);
 
       if (!output || (Array.isArray(output) && output.length === 0)) {
-        throw new Error('No cover image generated from Ideogram v3 Turbo');
+        throw new Error(`No cover image generated from ${imageModel}`);
       }
 
       // Download the generated image (Replicate returns array of URLs)
@@ -143,33 +137,23 @@ export class ImageGenerationService {
     childFirstName: string;
     storySummary: string;
     illustrationStyle: string;
+    imageModel?: ImageModel;
   }): Promise<any> {
-    const { bookOrderId, storyTitle, childFirstName, storySummary, illustrationStyle } = params;
+    const { bookOrderId, storyTitle, childFirstName, storySummary, illustrationStyle, imageModel = this.defaultModel } = params;
 
     try {
       const supabase = getSupabase();
 
       const prompt = this.buildBackCoverPrompt(storyTitle, childFirstName, storySummary, illustrationStyle);
 
-      console.log('Generating back cover with Ideogram v3 Turbo...');
+      console.log(`Generating back cover with ${imageModel}...`);
       console.log(`Prompt: ${prompt.substring(0, 200)}...`);
 
-      // Generate cover with Ideogram v3 Turbo (excellent text rendering)
-      const replicate = getReplicate();
-      const output: any = await replicate.run(
-        "ideogram-ai/ideogram-v3-turbo",
-        {
-          input: {
-            prompt: prompt,
-            aspect_ratio: "1:1",
-            style_type: "Design", // Design style for text-heavy compositions
-            magic_prompt_option: "Off" // Don't modify our text specifications
-          }
-        }
-      );
+      // Generate cover with selected model
+      const output = await this.generateImageWithModel(prompt, imageModel);
 
       if (!output || (Array.isArray(output) && output.length === 0)) {
-        throw new Error('No back cover image generated from Ideogram v3 Turbo');
+        throw new Error(`No back cover image generated from ${imageModel}`);
       }
 
       // Download the generated image (Replicate returns array of URLs)
@@ -248,7 +232,7 @@ export class ImageGenerationService {
   }
 
   async generateImagesForStory(params: GenerateImagesParams): Promise<any[]> {
-    const { storyId, bookOrderId, pages, illustrationStyle, childFirstName } = params;
+    const { storyId, bookOrderId, pages, illustrationStyle, childFirstName, imageModel = this.defaultModel } = params;
 
     try {
       const supabase = getSupabase();
@@ -277,6 +261,7 @@ export class ImageGenerationService {
             storyPage: page,
             illustrationStyle,
             childFirstName,
+            imageModel,
           })
         );
         const batchResults = await Promise.all(batchPromises);
@@ -298,32 +283,22 @@ export class ImageGenerationService {
     storyPage: any;
     illustrationStyle: string;
     childFirstName: string;
+    imageModel?: ImageModel;
   }): Promise<any> {
-    const { bookOrderId, storyPage, illustrationStyle, childFirstName } = params;
+    const { bookOrderId, storyPage, illustrationStyle, childFirstName, imageModel = this.defaultModel } = params;
 
     try {
       const supabase = getSupabase();
       const prompt = this.buildImagePrompt(storyPage, illustrationStyle, childFirstName);
 
-      console.log(`Generating image for page ${storyPage.page_number} with Ideogram v3 Turbo...`);
+      console.log(`Generating image for page ${storyPage.page_number} with ${imageModel}...`);
       console.log(`Prompt: ${prompt.substring(0, 200)}...`);
 
-      // Generate image with Ideogram v3 Turbo (excellent text rendering)
-      const replicate = getReplicate();
-      const output: any = await replicate.run(
-        "ideogram-ai/ideogram-v3-turbo",
-        {
-          input: {
-            prompt: prompt,
-            aspect_ratio: "1:1",
-            style_type: "Design", // Design style for text-heavy compositions
-            magic_prompt_option: "Off" // Don't modify our text specifications
-          }
-        }
-      );
+      // Generate image with selected model
+      const output = await this.generateImageWithModel(prompt, imageModel);
 
       if (!output || (Array.isArray(output) && output.length === 0)) {
-        throw new Error('No image generated from Ideogram v3 Turbo');
+        throw new Error(`No image generated from ${imageModel}`);
       }
 
       // Download the generated image (Replicate returns array of URLs)
@@ -401,6 +376,45 @@ export class ImageGenerationService {
     }
   }
 
+  private async generateImageWithModel(prompt: string, model: ImageModel): Promise<any> {
+    const replicate = getReplicate();
+
+    if (model === 'ideogram') {
+      // Ideogram v3 Turbo - excellent for text rendering and design
+      return await replicate.run(
+        "ideogram-ai/ideogram-v3-turbo",
+        {
+          input: {
+            prompt: prompt,
+            aspect_ratio: "1:1",
+            style_type: "Design", // Design style for text-heavy compositions
+            magic_prompt_option: "Off" // Don't modify our text specifications
+          }
+        }
+      );
+    } else if (model === 'seedream') {
+      // Seedream 4 - high quality image generation
+      return await replicate.run(
+        "bytedance/seedream-4",
+        {
+          input: {
+            prompt: prompt,
+            size: "2K",
+            width: 2048,
+            height: 2048,
+            max_images: 1,
+            image_input: [],
+            aspect_ratio: "1:1",
+            enhance_prompt: false, // Keep our prompt as-is
+            sequential_image_generation: "disabled"
+          }
+        }
+      );
+    } else {
+      throw new Error(`Unsupported image model: ${model}`);
+    }
+  }
+
   private buildImagePrompt(storyPage: any, illustrationStyle: string, childFirstName: string): string {
     const styleGuides: Record<string, string> = {
       'watercolour': 'soft watercolor painting style with gentle brushstrokes',
@@ -412,11 +426,11 @@ export class ImageGenerationService {
 
     const styleGuide = styleGuides[illustrationStyle] || styleGuides['watercolour'];
 
-    // Natural language format as per Ideogram official documentation
+    // Image only - text will be on opposite page programmatically
     let prompt = `A professional children's book page illustration in ${styleGuide}. `;
     prompt += `Scene: ${storyPage.image_prompt}. `;
     prompt += `The illustration features ${childFirstName}, an 8-year-old child. `;
-    prompt += `At the bottom of the page is text that reads: "${storyPage.page_text}" in a bold, clean, child-friendly font. `;
+    prompt += `Full-page illustration with no text or words. `;
     prompt += `Bright, inviting colors. Safe, age-appropriate content. Professional storybook quality.`;
 
     return prompt;
