@@ -35,64 +35,100 @@ async function processBookOrder(bookOrderId: string) {
       throw new Error(`Failed to fetch book order: ${fetchError?.message}`);
     }
 
-    // Step 1: Generate Story
-    console.log(`[process-books] Generating story for ${bookOrder.child_first_name}...`);
-    await supabase
-      .from('book_orders')
-      .update({ status: 'generating-story' })
-      .eq('id', bookOrderId);
+    console.log(`[process-books] Current status: ${bookOrder.status}`);
 
-    const storyService = new StoryGenerationService();
-    const generatedStory = await storyService.generateStory({
-      bookOrderId,
-      templateId: bookOrder.template_id,
-      childFirstName: bookOrder.child_first_name,
-      childAge: bookOrder.child_age,
-      childGender: bookOrder.child_gender,
-      favouriteColours: bookOrder.favourite_colours || [],
-      interests: bookOrder.interests || [],
-      personalityTraits: bookOrder.personality_traits || [],
-      customPrompt: bookOrder.custom_story_prompt,
-      pets: bookOrder.pets || [],
-    });
+    // Check what's already been done
+    const { data: existingStory } = await supabase
+      .from('generated_stories')
+      .select('id, title')
+      .eq('book_order_id', bookOrderId)
+      .single();
 
-    console.log(`[process-books] Story generated: ${generatedStory.title}`);
+    const { data: existingImages, count: imageCount } = await supabase
+      .from('generated_images')
+      .select('id', { count: 'exact' })
+      .eq('book_order_id', bookOrderId);
 
-    // Step 2: Generate Images
-    console.log(`[process-books] Generating images for 15 pages...`);
-    await supabase
-      .from('book_orders')
-      .update({ status: 'generating-images' })
-      .eq('id', bookOrderId);
+    const { data: existingPdf } = await supabase
+      .from('generated_pdfs')
+      .select('id')
+      .eq('book_order_id', bookOrderId)
+      .single();
 
-    const imageService = new ImageGenerationService();
-    const generatedImages = await imageService.generateImagesForStory({
-      storyId: generatedStory.id,
-      bookOrderId,
-      pages: generatedStory.pages,
-      illustrationStyle: bookOrder.illustration_style,
-      childFirstName: bookOrder.child_first_name,
-    });
+    console.log(`[process-books] Already done - Story: ${!!existingStory}, Images: ${imageCount}/15, PDF: ${!!existingPdf}`);
 
-    console.log(`[process-books] ${generatedImages.length} images generated`);
+    // Step 1: Generate Story (if not already done)
+    let generatedStory = existingStory;
+    if (!existingStory) {
+      console.log(`[process-books] Generating story for ${bookOrder.child_first_name}...`);
+      await supabase
+        .from('book_orders')
+        .update({ status: 'generating-story' })
+        .eq('id', bookOrderId);
 
-    // Step 3: Generate PDF
-    console.log(`[process-books] Creating PDF...`);
-    await supabase
-      .from('book_orders')
-      .update({ status: 'creating-pdf' })
-      .eq('id', bookOrderId);
+      const storyService = new StoryGenerationService();
+      generatedStory = await storyService.generateStory({
+        bookOrderId,
+        templateId: bookOrder.template_id,
+        childFirstName: bookOrder.child_first_name,
+        childAge: bookOrder.child_age,
+        childGender: bookOrder.child_gender,
+        favouriteColours: bookOrder.favourite_colours || [],
+        interests: bookOrder.interests || [],
+        personalityTraits: bookOrder.personality_traits || [],
+        customPrompt: bookOrder.custom_story_prompt,
+        pets: bookOrder.pets || [],
+      });
 
-    const pdfService = new PDFGenerationService();
-    const pdfResult = await pdfService.generatePDF({
-      bookOrderId,
-      storyId: generatedStory.id,
-      title: bookOrder.template?.title || `${bookOrder.child_first_name}'s Story`,
-      pages: generatedStory.pages,
-      images: generatedImages,
-    });
+      console.log(`[process-books] Story generated: ${generatedStory.title}`);
+    } else {
+      console.log(`[process-books] Story already exists, skipping...`);
+    }
 
-    console.log(`[process-books] PDF generated: ${pdfResult.id}`);
+    // Step 2: Generate Images (if not already done)
+    let generatedImages = existingImages;
+    if (!imageCount || imageCount < 15) {
+      console.log(`[process-books] Generating images (${imageCount || 0}/15 exist)...`);
+      await supabase
+        .from('book_orders')
+        .update({ status: 'generating-images' })
+        .eq('id', bookOrderId);
+
+      const imageService = new ImageGenerationService();
+      generatedImages = await imageService.generateImagesForStory({
+        storyId: generatedStory!.id,
+        bookOrderId,
+        pages: generatedStory!.pages,
+        illustrationStyle: bookOrder.illustration_style,
+        childFirstName: bookOrder.child_first_name,
+      });
+
+      console.log(`[process-books] ${generatedImages.length} images generated`);
+    } else {
+      console.log(`[process-books] All images already exist, skipping...`);
+    }
+
+    // Step 3: Generate PDF (if not already done)
+    if (!existingPdf) {
+      console.log(`[process-books] Creating PDF...`);
+      await supabase
+        .from('book_orders')
+        .update({ status: 'creating-pdf' })
+        .eq('id', bookOrderId);
+
+      const pdfService = new PDFGenerationService();
+      const pdfResult = await pdfService.generatePDF({
+        bookOrderId,
+        storyId: generatedStory!.id,
+        title: bookOrder.template?.title || `${bookOrder.child_first_name}'s Story`,
+        pages: generatedStory!.pages,
+        images: generatedImages!,
+      });
+
+      console.log(`[process-books] PDF generated: ${pdfResult.id}`);
+    } else {
+      console.log(`[process-books] PDF already exists, skipping...`);
+    }
 
     // Step 4: Mark as completed
     await supabase
@@ -137,11 +173,11 @@ export async function GET(req: NextRequest) {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Find books that need processing
+    // Find books that need processing (any intermediate state)
     const { data: pendingBooks, error } = await supabase
       .from('book_orders')
-      .select('id, child_first_name, created_at')
-      .eq('status', 'processing')
+      .select('id, child_first_name, created_at, status')
+      .in('status', ['processing', 'generating-story', 'generating-images', 'creating-pdf'])
       .order('created_at', { ascending: true })
       .limit(1); // Process one at a time to avoid timeouts
 
