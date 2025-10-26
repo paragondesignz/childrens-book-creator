@@ -3,17 +3,19 @@ import sharp from 'sharp';
 import { createClient } from '@supabase/supabase-js';
 import axios from 'axios';
 
-// Configure Replicate
-const replicate = new Replicate({
-  auth: process.env.REPLICATE_API_TOKEN,
-});
-
 // Lazy initialization to ensure environment variables are loaded
 function getSupabase() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
+}
+
+// Lazy initialization for Replicate to ensure environment variables are loaded
+function getReplicate() {
+  return new Replicate({
+    auth: process.env.REPLICATE_API_TOKEN,
+  });
 }
 
 interface GenerateImagesParams {
@@ -43,6 +45,7 @@ export class ImageGenerationService {
       console.log(`Prompt: ${prompt.substring(0, 200)}...`);
 
       // Generate cover with Seedream 4.0
+      const replicate = getReplicate();
       const output: any = await replicate.run(
         "seedream/seedream-4.0:latest",
         {
@@ -157,6 +160,7 @@ export class ImageGenerationService {
       console.log(`Prompt: ${prompt.substring(0, 200)}...`);
 
       // Generate cover with Seedream 4.0
+      const replicate = getReplicate();
       const output: any = await replicate.run(
         "seedream/seedream-4.0:latest",
         {
@@ -315,6 +319,7 @@ export class ImageGenerationService {
       console.log(`Prompt: ${prompt.substring(0, 200)}...`);
 
       // Generate image with Seedream 4.0
+      const replicate = getReplicate();
       const output: any = await replicate.run(
         "seedream/seedream-4.0:latest",
         {
