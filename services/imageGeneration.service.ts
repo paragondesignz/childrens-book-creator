@@ -41,13 +41,13 @@ export class ImageGenerationService {
 
       const prompt = this.buildFrontCoverPrompt(storyTitle, childFirstName, illustrationStyle);
 
-      console.log('Generating front cover with Seedream 4.0...');
+      console.log('Generating front cover with Seedream 4...');
       console.log(`Prompt: ${prompt.substring(0, 200)}...`);
 
-      // Generate cover with Seedream 4.0
+      // Generate cover with Seedream 4
       const replicate = getReplicate();
       const output: any = await replicate.run(
-        "seedream/seedream-4.0:latest",
+        "bytedance/seedream-4",
         {
           input: {
             prompt: prompt,
@@ -64,7 +64,7 @@ export class ImageGenerationService {
       );
 
       if (!output || (Array.isArray(output) && output.length === 0)) {
-        throw new Error('No cover image generated from Seedream 4.0');
+        throw new Error('No cover image generated from Seedream 4');
       }
 
       // Download the generated image (Replicate returns array of URLs)
@@ -156,13 +156,13 @@ export class ImageGenerationService {
 
       const prompt = this.buildBackCoverPrompt(storyTitle, childFirstName, storySummary, illustrationStyle);
 
-      console.log('Generating back cover with Seedream 4.0...');
+      console.log('Generating back cover with Seedream 4...');
       console.log(`Prompt: ${prompt.substring(0, 200)}...`);
 
-      // Generate cover with Seedream 4.0
+      // Generate cover with Seedream 4
       const replicate = getReplicate();
       const output: any = await replicate.run(
-        "seedream/seedream-4.0:latest",
+        "bytedance/seedream-4",
         {
           input: {
             prompt: prompt,
@@ -179,7 +179,7 @@ export class ImageGenerationService {
       );
 
       if (!output || (Array.isArray(output) && output.length === 0)) {
-        throw new Error('No back cover image generated from Seedream 4.0');
+        throw new Error('No back cover image generated from Seedream 4');
       }
 
       // Download the generated image (Replicate returns array of URLs)
@@ -315,13 +315,13 @@ export class ImageGenerationService {
       const supabase = getSupabase();
       const prompt = this.buildImagePrompt(storyPage, illustrationStyle, childFirstName);
 
-      console.log(`Generating image for page ${storyPage.page_number} with Seedream 4.0...`);
+      console.log(`Generating image for page ${storyPage.page_number} with Seedream 4...`);
       console.log(`Prompt: ${prompt.substring(0, 200)}...`);
 
-      // Generate image with Seedream 4.0
+      // Generate image with Seedream 4
       const replicate = getReplicate();
       const output: any = await replicate.run(
-        "seedream/seedream-4.0:latest",
+        "bytedance/seedream-4",
         {
           input: {
             prompt: prompt,
@@ -338,7 +338,7 @@ export class ImageGenerationService {
       );
 
       if (!output || (Array.isArray(output) && output.length === 0)) {
-        throw new Error('No image generated from Seedream 4.0');
+        throw new Error('No image generated from Seedream 4');
       }
 
       // Download the generated image (Replicate returns array of URLs)
