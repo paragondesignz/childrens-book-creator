@@ -23,8 +23,8 @@ export async function middleware(request: NextRequest) {
  * Adds security headers to response
  */
 function addSecurityHeaders(response: NextResponse): void {
-  // Prevent clickjacking
-  response.headers.set('X-Frame-Options', 'DENY');
+  // Prevent clickjacking (allow same-origin frames for book viewer)
+  response.headers.set('X-Frame-Options', 'SAMEORIGIN');
 
   // Prevent MIME type sniffing
   response.headers.set('X-Content-Type-Options', 'nosniff');
