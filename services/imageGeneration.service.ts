@@ -1,5 +1,4 @@
-import Replicate from 'replicate';
-import sharp from 'sharp';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import { createClient } from '@supabase/supabase-js';
 import axios from 'axios';
 
@@ -11,11 +10,37 @@ function getSupabase() {
   );
 }
 
-// Lazy initialization for Replicate to ensure environment variables are loaded
-function getReplicate() {
-  return new Replicate({
-    auth: process.env.REPLICATE_API_TOKEN,
-  });
+// Lazy initialization for Gemini to ensure environment variables are loaded
+function getGemini() {
+  const apiKey = process.env.GOOGLE_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error('GEMINI_API_KEY or GOOGLE_GEMINI_API_KEY environment variable is required');
+  }
+  return new GoogleGenerativeAI(apiKey);
+}
+
+// Helper to convert URL to base64 for Gemini API
+async function urlToBase64(url: string): Promise<{ inlineData: { data: string; mimeType: string } }> {
+  try {
+    const response = await axios.get(url, { responseType: 'arraybuffer' });
+    const buffer = Buffer.from(response.data);
+    const base64 = buffer.toString('base64');
+
+    // Determine MIME type from response or URL
+    let mimeType = response.headers['content-type'] || 'image/jpeg';
+    if (url.toLowerCase().endsWith('.png')) mimeType = 'image/png';
+    else if (url.toLowerCase().endsWith('.webp')) mimeType = 'image/webp';
+
+    return {
+      inlineData: {
+        data: base64,
+        mimeType: mimeType
+      }
+    };
+  } catch (error) {
+    console.error('Error converting URL to base64:', error);
+    throw error;
+  }
 }
 
 interface GenerateImagesParams {
@@ -88,37 +113,48 @@ export class ImageGenerationService {
 
       const prompt = this.buildFrontCoverPrompt(storyTitle, childFirstName, illustrationStyle);
 
-      console.log('Generating front cover with Seedream 4...');
+      console.log('Generating front cover with Gemini 2.0 Flash...');
       console.log(`Reference photo: ${referenceImageUrl ? 'Yes' : 'No'}`);
       console.log(`Prompt: ${prompt.substring(0, 200)}...`);
 
-      // Generate cover with Seedream 4
-      const replicate = getReplicate();
-      const output: any = await replicate.run(
-        "bytedance/seedream-4",
-        {
-          input: {
-            prompt: prompt,
-            size: "2K",
-            width: 2048,
-            height: 2048,
-            max_images: 1,
-            image_input: referenceImageUrl ? [referenceImageUrl] : [],
-            aspect_ratio: "1:1",
-            enhance_prompt: false, // Keep our prompt as-is
-            sequential_image_generation: "disabled"
-          }
-        }
-      );
+      // Generate cover with Gemini
+      const genAI = getGemini();
+      const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
 
-      if (!output || (Array.isArray(output) && output.length === 0)) {
-        throw new Error('No cover image generated from Seedream 4');
+      // Prepare input parts
+      const parts: any[] = [];
+
+      if (referenceImageUrl) {
+        const referenceImageData = await urlToBase64(referenceImageUrl);
+        parts.push(referenceImageData);
+        parts.push({ text: `This is ${childFirstName}, the main character. Use this person's exact appearance.` });
       }
 
-      // Download the generated image (Replicate returns array of URLs)
-      const generatedImageUrl = Array.isArray(output) ? output[0] : output;
-      const imageResponse = await axios.get(generatedImageUrl, { responseType: 'arraybuffer' });
-      const imageBuffer = Buffer.from(imageResponse.data);
+      parts.push({ text: prompt });
+
+      const result = await model.generateContent(parts);
+      const response = result.response;
+
+      if (!response || !response.candidates || response.candidates.length === 0) {
+        throw new Error('No cover image generated from Gemini');
+      }
+
+      // Extract image data from response
+      const candidate = response.candidates[0];
+      let imageBuffer: Buffer | null = null;
+
+      if (candidate.content && candidate.content.parts) {
+        for (const part of candidate.content.parts) {
+          if (part.inlineData && part.inlineData.data) {
+            imageBuffer = Buffer.from(part.inlineData.data, 'base64');
+            break;
+          }
+        }
+      }
+
+      if (!imageBuffer) {
+        throw new Error('No image data found in Gemini response');
+      }
 
       // Upload to Supabase Storage
       const imagePath = `${bookOrderId}/cover-front.png`;
@@ -185,37 +221,48 @@ export class ImageGenerationService {
 
       const prompt = this.buildBackCoverPrompt(storyTitle, childFirstName, storySummary, illustrationStyle);
 
-      console.log('Generating back cover with Seedream 4...');
+      console.log('Generating back cover with Gemini 2.0 Flash...');
       console.log(`Reference photo: ${referenceImageUrl ? 'Yes' : 'No'}`);
       console.log(`Prompt: ${prompt.substring(0, 200)}...`);
 
-      // Generate cover with Seedream 4
-      const replicate = getReplicate();
-      const output: any = await replicate.run(
-        "bytedance/seedream-4",
-        {
-          input: {
-            prompt: prompt,
-            size: "2K",
-            width: 2048,
-            height: 2048,
-            max_images: 1,
-            image_input: referenceImageUrl ? [referenceImageUrl] : [],
-            aspect_ratio: "1:1",
-            enhance_prompt: false, // Keep our prompt as-is
-            sequential_image_generation: "disabled"
-          }
-        }
-      );
+      // Generate cover with Gemini
+      const genAI = getGemini();
+      const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
 
-      if (!output || (Array.isArray(output) && output.length === 0)) {
-        throw new Error('No back cover image generated from Seedream 4');
+      // Prepare input parts
+      const parts: any[] = [];
+
+      if (referenceImageUrl) {
+        const referenceImageData = await urlToBase64(referenceImageUrl);
+        parts.push(referenceImageData);
+        parts.push({ text: `This is ${childFirstName}, the main character. Use this person's exact appearance.` });
       }
 
-      // Download the generated image (Replicate returns array of URLs)
-      const generatedImageUrl = Array.isArray(output) ? output[0] : output;
-      const imageResponse = await axios.get(generatedImageUrl, { responseType: 'arraybuffer' });
-      const imageBuffer = Buffer.from(imageResponse.data);
+      parts.push({ text: prompt });
+
+      const result = await model.generateContent(parts);
+      const response = result.response;
+
+      if (!response || !response.candidates || response.candidates.length === 0) {
+        throw new Error('No back cover image generated from Gemini');
+      }
+
+      // Extract image data from response
+      const candidate = response.candidates[0];
+      let imageBuffer: Buffer | null = null;
+
+      if (candidate.content && candidate.content.parts) {
+        for (const part of candidate.content.parts) {
+          if (part.inlineData && part.inlineData.data) {
+            imageBuffer = Buffer.from(part.inlineData.data, 'base64');
+            break;
+          }
+        }
+      }
+
+      if (!imageBuffer) {
+        throw new Error('No image data found in Gemini response');
+      }
 
       // Upload to Supabase Storage
       const imagePath = `${bookOrderId}/cover-back.png`;
@@ -338,38 +385,57 @@ export class ImageGenerationService {
       console.log(`[Page ${storyPage.page_number}] Starting generation (photo fetch: ${photoFetchTime}ms)`);
       console.log(`[Page ${storyPage.page_number}] Reference photo: ${referenceImageUrl ? 'Yes' : 'No'}`);
 
-      // Generate image with Seedream 4
+      // Generate image with Gemini 2.5 Flash Image
       const genStart = Date.now();
-      const replicate = getReplicate();
-      const output: any = await replicate.run(
-        "bytedance/seedream-4",
-        {
-          input: {
-            prompt: prompt,
-            size: "2K",
-            width: 2048,
-            height: 2048,
-            max_images: 1,
-            image_input: referenceImageUrl ? [referenceImageUrl] : [],
-            aspect_ratio: "1:1",
-            enhance_prompt: false, // Keep our prompt as-is
-            sequential_image_generation: "disabled"
-          }
-        }
-      );
+      const genAI = getGemini();
+      const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
 
-      if (!output || (Array.isArray(output) && output.length === 0)) {
-        throw new Error('No image generated from Seedream 4');
+      // Prepare input parts: reference image(s) + prompt
+      const parts: any[] = [];
+
+      if (referenceImageUrl) {
+        // Convert reference image to base64
+        const referenceImageData = await urlToBase64(referenceImageUrl);
+        parts.push(referenceImageData);
+        // Add instruction about the reference
+        parts.push({ text: `This is ${childFirstName}, the main character. Use this person's exact appearance throughout.` });
+      }
+
+      // Add the main prompt
+      parts.push({ text: prompt });
+
+      const result = await model.generateContent(parts);
+      const response = result.response;
+
+      // Gemini returns image as base64 in response
+      if (!response || !response.candidates || response.candidates.length === 0) {
+        throw new Error('No image generated from Gemini');
       }
 
       const genTime = Date.now() - genStart;
       console.log(`[Page ${storyPage.page_number}] AI generation completed in ${Math.round(genTime / 1000)}s`);
 
-      // Download the generated image (Replicate returns array of URLs)
+      // Extract image data from response
+      // Note: Gemini's image generation returns the image in the response
       const downloadStart = Date.now();
-      const generatedImageUrl = Array.isArray(output) ? output[0] : output;
-      const imageResponse = await axios.get(generatedImageUrl, { responseType: 'arraybuffer' });
-      const imageBuffer = Buffer.from(imageResponse.data);
+      const candidate = response.candidates[0];
+
+      // Gemini returns base64 encoded image in parts
+      let imageBuffer: Buffer | null = null;
+
+      if (candidate.content && candidate.content.parts) {
+        for (const part of candidate.content.parts) {
+          if (part.inlineData && part.inlineData.data) {
+            imageBuffer = Buffer.from(part.inlineData.data, 'base64');
+            break;
+          }
+        }
+      }
+
+      if (!imageBuffer) {
+        throw new Error('No image data found in Gemini response');
+      }
+
       const downloadTime = Date.now() - downloadStart;
 
       // Upload to Supabase Storage
@@ -429,82 +495,93 @@ export class ImageGenerationService {
 
   private buildImagePrompt(storyPage: any, illustrationStyle: string, childFirstName: string): string {
     const styleGuides: Record<string, string> = {
-      'watercolour': 'soft watercolor painting style with gentle brushstrokes',
-      'digital-art': 'vibrant digital illustration with smooth colors',
-      'cartoon': 'playful cartoon style with bold outlines and bright colors',
-      'storybook-classic': 'classic children storybook illustration, warm and timeless',
-      'modern-minimal': 'clean modern illustration with simple shapes',
-      'photographic': 'photorealistic style with natural lighting and detailed textures',
-      'anime': 'Japanese anime style with expressive features and dynamic composition',
-      'comic-book': 'bold comic book style with dynamic action and vibrant colors',
-      'fantasy-realistic': 'detailed fantasy illustration with realistic rendering',
-      'graphic-novel': 'sophisticated graphic novel style with dramatic lighting and mature composition',
+      'watercolour': 'Soft watercolor painting with gentle, flowing brushstrokes and translucent layers. Dreamy, delicate colors that blend naturally.',
+      'digital-art': 'Modern digital illustration with smooth gradients, vibrant colors, and polished finish. Contemporary and eye-catching.',
+      'cartoon': 'Playful cartoon style with bold black outlines, exaggerated features, and bright saturated colors. Fun and energetic.',
+      'storybook-classic': 'Traditional storybook illustration in the style of classic children\'s literature. Warm, timeless, and nostalgic with detailed linework.',
+      'modern-minimal': 'Clean modern illustration with simple geometric shapes, limited color palette, and minimalist design. Contemporary and sophisticated.',
+      'photographic': 'Photorealistic rendering with natural lighting, detailed textures, and lifelike appearance. Highly realistic and dimensional.',
+      'anime': 'Japanese anime art style with large expressive eyes, dynamic poses, and cel-shaded coloring. Energetic and stylized.',
+      'comic-book': 'Bold comic book style with dynamic action poses, vibrant primary colors, strong shadows, and dramatic composition. Superhero aesthetic.',
+      'fantasy-realistic': 'Detailed fantasy illustration combining realistic rendering with magical elements. Rich colors, dramatic lighting, and intricate details.',
+      'graphic-novel': 'Sophisticated graphic novel style with cinematic composition, dramatic lighting, and mature artistic sensibility. Moody and atmospheric.',
     };
 
     const styleGuide = styleGuides[illustrationStyle] || styleGuides['watercolour'];
 
-    // Image only - text will be on opposite page programmatically
-    // Reference image ensures character consistency
-    let prompt = `A professional children's book page illustration in ${styleGuide}. `;
-    prompt += `The main character is the child shown in the reference image, ${childFirstName}. `;
-    prompt += `IMPORTANT: Use the EXACT same child from the reference photo - same face, hair, features. `;
-    prompt += `Scene: ${storyPage.image_prompt}. `;
-    prompt += `Full-page illustration with no text or words. `;
-    prompt += `Bright, inviting colors. Safe, age-appropriate content. Professional storybook quality.`;
+    // Build comprehensive prompt for Gemini
+    let prompt = `Create a professional children's book illustration.\n\n`;
+    prompt += `STYLE: ${styleGuide}\n\n`;
+    prompt += `IMPORTANT CHARACTER CONSISTENCY:\n`;
+    prompt += `- The main character is ${childFirstName}, shown in the reference image provided\n`;
+    prompt += `- Keep the EXACT same face, hair color, hair style, eye color, and physical features from the reference\n`;
+    prompt += `- Ensure ${childFirstName} is immediately recognizable as the same person\n`;
+    prompt += `- Maintain consistent age appearance and proportions\n\n`;
+    prompt += `SCENE: ${storyPage.image_prompt}\n\n`;
+    prompt += `REQUIREMENTS:\n`;
+    prompt += `- Full-page illustration with no text, words, or letters\n`;
+    prompt += `- Bright, inviting, child-friendly colors\n`;
+    prompt += `- Safe, age-appropriate content\n`;
+    prompt += `- Professional storybook quality\n`;
+    prompt += `- Clear focus on the main character ${childFirstName}\n`;
+    prompt += `- Engaging composition that captures attention`;
 
     return prompt;
   }
 
   private buildFrontCoverPrompt(storyTitle: string, childFirstName: string, illustrationStyle: string): string {
     const styleGuides: Record<string, string> = {
-      'watercolour': 'soft watercolor painting style with gentle brushstrokes',
-      'digital-art': 'vibrant digital illustration with smooth colors',
-      'cartoon': 'playful cartoon style with bold outlines and bright colors',
-      'storybook-classic': 'classic children storybook illustration, warm and timeless',
-      'modern-minimal': 'clean modern illustration with simple shapes',
-      'photographic': 'photorealistic style with natural lighting and detailed textures',
-      'anime': 'Japanese anime style with expressive features and dynamic composition',
-      'comic-book': 'bold comic book style with dynamic action and vibrant colors',
-      'fantasy-realistic': 'detailed fantasy illustration with realistic rendering',
-      'graphic-novel': 'sophisticated graphic novel style with dramatic lighting and mature composition',
+      'watercolour': 'Soft watercolor painting with gentle, flowing brushstrokes',
+      'digital-art': 'Modern digital illustration with smooth gradients and vibrant colors',
+      'cartoon': 'Playful cartoon style with bold outlines and bright colors',
+      'storybook-classic': 'Traditional storybook illustration, warm and timeless',
+      'modern-minimal': 'Clean modern illustration with simple shapes',
+      'photographic': 'Photorealistic rendering with natural lighting',
+      'anime': 'Japanese anime art style with expressive features',
+      'comic-book': 'Bold comic book style with dynamic composition',
+      'fantasy-realistic': 'Detailed fantasy illustration with realistic rendering',
+      'graphic-novel': 'Sophisticated graphic novel style with dramatic lighting',
     };
 
     const styleGuide = styleGuides[illustrationStyle] || styleGuides['watercolour'];
 
-    // Natural language format with contextual text placement
-    let prompt = `A beautiful children's book front cover in ${styleGuide}. `;
-    prompt += `The main character is the child shown in the reference image, ${childFirstName}. `;
-    prompt += `IMPORTANT: Use the EXACT same child from the reference photo - same face, hair, features. `;
-    prompt += `An enchanting illustration in a magical scene. `;
-    prompt += `At the top of the cover is the title text that reads: "${storyTitle}" in large, bold, playful letters. `;
-    prompt += `At the bottom is text that reads: "Starring ${childFirstName}" in elegant script. `;
-    prompt += `Professional children's book cover quality. Vibrant, inviting colors. Award-winning design. Safe content.`;
+    let prompt = `Create a stunning children's book front cover.\n\n`;
+    prompt += `STYLE: ${styleGuide}\n\n`;
+    prompt += `CHARACTER: ${childFirstName} from the reference image - use EXACT same appearance\n\n`;
+    prompt += `COMPOSITION: Feature ${childFirstName} in an enchanting, magical scene that captures imagination\n\n`;
+    prompt += `TEXT ELEMENTS:\n`;
+    prompt += `- Top: "${storyTitle}" in large, bold, playful letters\n`;
+    prompt += `- Bottom: "Starring ${childFirstName}" in elegant script\n\n`;
+    prompt += `QUALITY: Professional, award-winning book cover design with vibrant, inviting colors`;
 
     return prompt;
   }
 
   private buildBackCoverPrompt(storyTitle: string, childFirstName: string, storySummary: string, illustrationStyle: string): string {
     const styleGuides: Record<string, string> = {
-      'watercolour': 'soft watercolor painting style with gentle brushstrokes',
-      'digital-art': 'vibrant digital illustration with smooth colors',
-      'cartoon': 'playful cartoon style with bold outlines and bright colors',
-      'storybook-classic': 'classic children storybook illustration, warm and timeless',
-      'modern-minimal': 'clean modern illustration with simple shapes',
-      'photographic': 'photorealistic style with natural lighting and detailed textures',
-      'anime': 'Japanese anime style with expressive features and dynamic composition',
-      'comic-book': 'bold comic book style with dynamic action and vibrant colors',
-      'fantasy-realistic': 'detailed fantasy illustration with realistic rendering',
-      'graphic-novel': 'sophisticated graphic novel style with dramatic lighting and mature composition',
+      'watercolour': 'Soft watercolor painting with gentle brushstrokes',
+      'digital-art': 'Modern digital illustration with vibrant colors',
+      'cartoon': 'Playful cartoon style with bold outlines',
+      'storybook-classic': 'Traditional storybook illustration',
+      'modern-minimal': 'Clean modern illustration',
+      'photographic': 'Photorealistic rendering',
+      'anime': 'Japanese anime art style',
+      'comic-book': 'Bold comic book style',
+      'fantasy-realistic': 'Detailed fantasy illustration',
+      'graphic-novel': 'Sophisticated graphic novel style',
     };
 
     const styleGuide = styleGuides[illustrationStyle] || styleGuides['watercolour'];
 
-    // Back cover illustration only - text will be added programmatically
-    let prompt = `A beautiful children's book back cover illustration in ${styleGuide}. `;
-    prompt += `The main character is the child shown in the reference image, ${childFirstName}. `;
-    prompt += `IMPORTANT: Use the EXACT same child from the reference photo - same face, hair, features. `;
-    prompt += `Decorative whimsical illustration in a magical, enchanting scene. No text or words. `;
-    prompt += `Professional book cover quality. Warm, inviting colors. Safe, age-appropriate design.`;
+    let prompt = `Create a beautiful children's book back cover illustration.\n\n`;
+    prompt += `STYLE: ${styleGuide}\n\n`;
+    prompt += `CHARACTER: ${childFirstName} from the reference image - use EXACT same appearance\n\n`;
+    prompt += `COMPOSITION: Decorative, whimsical scene in a magical, enchanting setting\n\n`;
+    prompt += `REQUIREMENTS:\n`;
+    prompt += `- No text or words\n`;
+    prompt += `- Professional book cover quality\n`;
+    prompt += `- Warm, inviting colors\n`;
+    prompt += `- Safe, age-appropriate design`;
 
     return prompt;
   }
