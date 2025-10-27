@@ -76,16 +76,46 @@ export class StoryGenerationService {
         },
       });
 
-      const result = await model.generateContent(prompt);
-      const response = result.response;
-      const text = response.text();
+      // Try up to 3 times to get valid JSON from Gemini
+      let storyData: GeneratedStoryData | null = null;
+      let lastError: Error | null = null;
 
-      // Parse JSON response
-      const storyData: GeneratedStoryData = JSON.parse(text);
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          console.log(`Story generation attempt ${attempt}/3...`);
 
-      // Validate story data
-      if (!storyData.title || !storyData.pages || storyData.pages.length !== 10) {
-        throw new Error(`Invalid story data received from Gemini: expected 10 pages, got ${storyData.pages?.length || 0}`);
+          const result = await model.generateContent(prompt);
+          const response = result.response;
+          const text = response.text();
+
+          console.log(`Received ${text.length} characters, parsing JSON...`);
+
+          // Parse JSON response
+          storyData = JSON.parse(text);
+
+          // Validate story data
+          if (!storyData.title || !storyData.pages || storyData.pages.length !== 10) {
+            throw new Error(`Invalid story data: expected 10 pages, got ${storyData.pages?.length || 0}`);
+          }
+
+          console.log(`✓ Valid story generated: "${storyData.title}" with ${storyData.pages.length} pages`);
+          break; // Success! Exit retry loop
+
+        } catch (error: any) {
+          lastError = error;
+          console.error(`Attempt ${attempt} failed:`, error.message);
+
+          if (attempt < 3) {
+            console.log(`Retrying in 2 seconds...`);
+            await new Promise(resolve => setTimeout(resolve, 2000));
+          }
+        }
+      }
+
+      // If all attempts failed, throw the last error
+      if (!storyData) {
+        console.error('All story generation attempts failed');
+        throw new Error(`Failed to generate valid story after 3 attempts: ${lastError?.message}`);
       }
 
       // Save to database
