@@ -28,6 +28,35 @@ interface GenerateImagesParams {
 
 export class ImageGenerationService {
 
+  /**
+   * Fetches the child's reference photo URL from Supabase
+   * Returns null if no photo is found
+   */
+  private async getChildReferencePhoto(bookOrderId: string): Promise<string | null> {
+    try {
+      const supabase = getSupabase();
+
+      // Query uploaded_images table for child photo
+      const { data, error } = await supabase
+        .from('uploaded_images')
+        .select('storage_url')
+        .eq('book_order_id', bookOrderId)
+        .eq('image_type', 'child_photo')
+        .single();
+
+      if (error || !data) {
+        console.warn(`No reference photo found for book order ${bookOrderId}`);
+        return null;
+      }
+
+      console.log(`Found reference photo for book order ${bookOrderId}`);
+      return data.storage_url;
+    } catch (error) {
+      console.error('Error fetching reference photo:', error);
+      return null;
+    }
+  }
+
   async generateFrontCover(params: {
     bookOrderId: string;
     storyTitle: string;
@@ -39,9 +68,13 @@ export class ImageGenerationService {
     try {
       const supabase = getSupabase();
 
+      // Fetch child's reference photo
+      const referenceImageUrl = await this.getChildReferencePhoto(bookOrderId);
+
       const prompt = this.buildFrontCoverPrompt(storyTitle, childFirstName, illustrationStyle);
 
       console.log('Generating front cover with Seedream 4...');
+      console.log(`Reference photo: ${referenceImageUrl ? 'Yes' : 'No'}`);
       console.log(`Prompt: ${prompt.substring(0, 200)}...`);
 
       // Generate cover with Seedream 4
@@ -55,7 +88,7 @@ export class ImageGenerationService {
             width: 2048,
             height: 2048,
             max_images: 1,
-            image_input: [],
+            image_input: referenceImageUrl ? [referenceImageUrl] : [],
             aspect_ratio: "1:1",
             enhance_prompt: false, // Keep our prompt as-is
             sequential_image_generation: "disabled"
@@ -154,9 +187,13 @@ export class ImageGenerationService {
     try {
       const supabase = getSupabase();
 
+      // Fetch child's reference photo
+      const referenceImageUrl = await this.getChildReferencePhoto(bookOrderId);
+
       const prompt = this.buildBackCoverPrompt(storyTitle, childFirstName, storySummary, illustrationStyle);
 
       console.log('Generating back cover with Seedream 4...');
+      console.log(`Reference photo: ${referenceImageUrl ? 'Yes' : 'No'}`);
       console.log(`Prompt: ${prompt.substring(0, 200)}...`);
 
       // Generate cover with Seedream 4
@@ -170,7 +207,7 @@ export class ImageGenerationService {
             width: 2048,
             height: 2048,
             max_images: 1,
-            image_input: [],
+            image_input: referenceImageUrl ? [referenceImageUrl] : [],
             aspect_ratio: "1:1",
             enhance_prompt: false, // Keep our prompt as-is
             sequential_image_generation: "disabled"
@@ -313,9 +350,14 @@ export class ImageGenerationService {
 
     try {
       const supabase = getSupabase();
+
+      // Fetch child's reference photo
+      const referenceImageUrl = await this.getChildReferencePhoto(bookOrderId);
+
       const prompt = this.buildImagePrompt(storyPage, illustrationStyle, childFirstName);
 
       console.log(`Generating image for page ${storyPage.page_number} with Seedream 4...`);
+      console.log(`Reference photo: ${referenceImageUrl ? 'Yes' : 'No'}`);
       console.log(`Prompt: ${prompt.substring(0, 200)}...`);
 
       // Generate image with Seedream 4
@@ -329,7 +371,7 @@ export class ImageGenerationService {
             width: 2048,
             height: 2048,
             max_images: 1,
-            image_input: [],
+            image_input: referenceImageUrl ? [referenceImageUrl] : [],
             aspect_ratio: "1:1",
             enhance_prompt: false, // Keep our prompt as-is
             sequential_image_generation: "disabled"
@@ -428,9 +470,11 @@ export class ImageGenerationService {
     const styleGuide = styleGuides[illustrationStyle] || styleGuides['watercolour'];
 
     // Image only - text will be on opposite page programmatically
+    // Reference image ensures character consistency
     let prompt = `A professional children's book page illustration in ${styleGuide}. `;
+    prompt += `The main character is the child shown in the reference image, ${childFirstName}. `;
+    prompt += `IMPORTANT: Use the EXACT same child from the reference photo - same face, hair, features. `;
     prompt += `Scene: ${storyPage.image_prompt}. `;
-    prompt += `The illustration features ${childFirstName}, an 8-year-old child. `;
     prompt += `Full-page illustration with no text or words. `;
     prompt += `Bright, inviting colors. Safe, age-appropriate content. Professional storybook quality.`;
 
@@ -450,7 +494,9 @@ export class ImageGenerationService {
 
     // Natural language format with contextual text placement
     let prompt = `A beautiful children's book front cover in ${styleGuide}. `;
-    prompt += `An enchanting illustration featuring ${childFirstName}, an 8-year-old child, in a magical scene. `;
+    prompt += `The main character is the child shown in the reference image, ${childFirstName}. `;
+    prompt += `IMPORTANT: Use the EXACT same child from the reference photo - same face, hair, features. `;
+    prompt += `An enchanting illustration in a magical scene. `;
     prompt += `At the top of the cover is the title text that reads: "${storyTitle}" in large, bold, playful letters. `;
     prompt += `At the bottom is text that reads: "Starring ${childFirstName}" in elegant script. `;
     prompt += `Professional children's book cover quality. Vibrant, inviting colors. Award-winning design. Safe content.`;
@@ -471,8 +517,9 @@ export class ImageGenerationService {
 
     // Back cover illustration only - text will be added programmatically
     let prompt = `A beautiful children's book back cover illustration in ${styleGuide}. `;
-    prompt += `Decorative whimsical illustration featuring ${childFirstName}, an 8-year-old child. `;
-    prompt += `Magical, enchanting scene. No text or words. `;
+    prompt += `The main character is the child shown in the reference image, ${childFirstName}. `;
+    prompt += `IMPORTANT: Use the EXACT same child from the reference photo - same face, hair, features. `;
+    prompt += `Decorative whimsical illustration in a magical, enchanting scene. No text or words. `;
     prompt += `Professional book cover quality. Warm, inviting colors. Safe, age-appropriate design.`;
 
     return prompt;
