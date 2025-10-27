@@ -45,7 +45,8 @@ async function processBook(job: Job<BookJobData>) {
     await job.updateProgress(10);
 
     // Step 1: Generate Story
-    console.log('Generating story...');
+    const startStory = Date.now();
+    console.log(`[${bookOrderId}] Step 1/4: Generating story...`);
     await supabase
       .from('book_orders')
       .update({ status: 'generating-story' })
@@ -65,28 +66,56 @@ async function processBook(job: Job<BookJobData>) {
       pets: bookOrder.pets || [],
     });
 
+    console.log(`[${bookOrderId}] Story generated in ${Math.round((Date.now() - startStory) / 1000)}s`);
     await job.updateProgress(40);
 
-    // Step 2: Generate Images
-    console.log('Generating images...');
+    // Step 2: Generate Images (covers + story pages)
+    const startImages = Date.now();
+    console.log(`[${bookOrderId}] Step 2/4: Generating images (2 covers + ${generatedStory.pages.length} pages)...`);
     await supabase
       .from('book_orders')
       .update({ status: 'generating-images' })
       .eq('id', bookOrderId);
 
     const imageService = new ImageGenerationService();
-    const generatedImages = await imageService.generateImagesForStory({
-      storyId: generatedStory.id,
-      bookOrderId,
-      pages: generatedStory.pages,
-      illustrationStyle: bookOrder.illustration_style,
-      childFirstName: bookOrder.child_first_name,
-    });
+
+    // Generate all images in parallel for better performance
+    const [frontCover, backCover, storyImages] = await Promise.all([
+      // Front cover (with AI text)
+      imageService.generateFrontCover({
+        bookOrderId,
+        storyTitle: generatedStory.title,
+        childFirstName: bookOrder.child_first_name,
+        illustrationStyle: bookOrder.illustration_style,
+      }),
+
+      // Back cover (text will be added programmatically in PDF)
+      imageService.generateBackCover({
+        bookOrderId,
+        storyTitle: generatedStory.title,
+        childFirstName: bookOrder.child_first_name,
+        storySummary: generatedStory.summary || '',
+        illustrationStyle: bookOrder.illustration_style,
+      }),
+
+      // Story page images (15 pages)
+      imageService.generateImagesForStory({
+        storyId: generatedStory.id,
+        bookOrderId,
+        pages: generatedStory.pages,
+        illustrationStyle: bookOrder.illustration_style,
+        childFirstName: bookOrder.child_first_name,
+      }),
+    ]);
+
+    console.log(`[${bookOrderId}] All ${storyImages.length + 2} images generated in ${Math.round((Date.now() - startImages) / 1000)}s`);
+    const generatedImages = [frontCover, ...storyImages, backCover];
 
     await job.updateProgress(70);
 
     // Step 3: Generate PDF
-    console.log('Creating PDF...');
+    const startPDF = Date.now();
+    console.log(`[${bookOrderId}] Step 3/4: Creating PDF...`);
     await supabase
       .from('book_orders')
       .update({ status: 'creating-pdf' })
@@ -101,10 +130,11 @@ async function processBook(job: Job<BookJobData>) {
       images: generatedImages,
     });
 
+    console.log(`[${bookOrderId}] PDF created in ${Math.round((Date.now() - startPDF) / 1000)}s`);
     await job.updateProgress(90);
 
     // Step 4: Mark as completed
-    console.log('Finalizing...');
+    console.log(`[${bookOrderId}] Step 4/4: Finalizing...`);
     await supabase
       .from('book_orders')
       .update({ status: 'completed' })
@@ -112,7 +142,8 @@ async function processBook(job: Job<BookJobData>) {
 
     await job.updateProgress(100);
 
-    console.log(`Book processing completed for order: ${bookOrderId}`);
+    const totalTime = Math.round((Date.now() - Date.parse(bookOrder.created_at)) / 1000);
+    console.log(`[${bookOrderId}] ✓ Book processing completed in ${totalTime}s`);
     
     return {
       success: true,
