@@ -98,8 +98,11 @@ export function StepTwo({ formData, updateFormData, onNext, onPrev }: StepTwoPro
             type="number"
             min="1"
             max="14"
-            value={formData.childAge}
-            onChange={(e) => updateFormData({ childAge: parseInt(e.target.value) })}
+            value={formData.childAge || ''}
+            onChange={(e) => {
+              const age = e.target.value === '' ? 0 : parseInt(e.target.value, 10);
+              updateFormData({ childAge: age });
+            }}
             className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
           />
           <p className="text-xs text-gray-500 mt-1">Ages 1-14 years</p>
