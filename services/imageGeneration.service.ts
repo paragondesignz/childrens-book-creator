@@ -945,6 +945,8 @@ export class ImageGenerationService {
         : this.buildConversationalFrontCoverPrompt(storyTitle, childFirstName, illustrationStyle);
 
       console.log(`[${coverType.toUpperCase()} Cover] Sending prompt in conversation context...`);
+      console.log(`[${coverType.toUpperCase()} Cover] Prompt length: ${prompt.length} chars`);
+      console.log(`[${coverType.toUpperCase()} Cover] Prompt preview:`, prompt.substring(0, 300) + '...');
 
       // Send message in conversation with reference reinforcement
       const messageParts: any[] = [];
@@ -962,7 +964,32 @@ export class ImageGenerationService {
       const response = result.response;
       const genTime = Date.now() - genStart;
 
+      // DIAGNOSTIC LOGGING: Capture Gemini response details
+      console.log(`[${coverType.toUpperCase()} Cover] Gemini response received in ${Math.round(genTime / 1000)}s`);
+      console.log(`[${coverType.toUpperCase()} Cover] Response exists:`, !!response);
+      console.log(`[${coverType.toUpperCase()} Cover] Candidates exist:`, !!response?.candidates);
+      console.log(`[${coverType.toUpperCase()} Cover] Candidates count:`, response?.candidates?.length || 0);
+
+      // Log prompt feedback (safety filters)
+      if (response?.promptFeedback) {
+        console.log(`[${coverType.toUpperCase()} Cover] Prompt Feedback:`, JSON.stringify(response.promptFeedback, null, 2));
+      }
+
+      // Log candidate details if they exist
+      if (response?.candidates && response.candidates.length > 0) {
+        response.candidates.forEach((candidate, idx) => {
+          console.log(`[${coverType.toUpperCase()} Cover] Candidate ${idx}:`, {
+            finishReason: candidate.finishReason,
+            safetyRatings: candidate.safetyRatings,
+            hasContent: !!candidate.content,
+            partsCount: candidate.content?.parts?.length || 0
+          });
+        });
+      }
+
       if (!response || !response.candidates || response.candidates.length === 0) {
+        // Log full response structure for debugging
+        console.error(`[${coverType.toUpperCase()} Cover] FULL RESPONSE OBJECT:`, JSON.stringify(response, null, 2));
         throw new Error(`No ${coverType} cover image generated from Gemini in conversation`);
       }
 
@@ -973,15 +1000,33 @@ export class ImageGenerationService {
       let imageBuffer: Buffer | null = null;
 
       if (candidate.content && candidate.content.parts) {
+        console.log(`[${coverType.toUpperCase()} Cover] Processing ${candidate.content.parts.length} parts from response`);
         for (const part of candidate.content.parts) {
+          console.log(`[${coverType.toUpperCase()} Cover] Part type:`, {
+            hasInlineData: !!part.inlineData,
+            hasText: !!part.text,
+            hasFileData: !!part.fileData
+          });
           if (part.inlineData && part.inlineData.data) {
             imageBuffer = Buffer.from(part.inlineData.data, 'base64');
+            console.log(`[${coverType.toUpperCase()} Cover] Image buffer extracted: ${imageBuffer.length} bytes`);
             break;
           }
         }
       }
 
       if (!imageBuffer) {
+        console.error(`[${coverType.toUpperCase()} Cover] No image buffer found. Candidate structure:`, JSON.stringify({
+          hasContent: !!candidate.content,
+          hasParts: !!candidate.content?.parts,
+          partsCount: candidate.content?.parts?.length || 0,
+          parts: candidate.content?.parts?.map(p => ({
+            hasInlineData: !!p.inlineData,
+            hasText: !!p.text,
+            hasFileData: !!p.fileData,
+            textPreview: p.text?.substring(0, 100)
+          }))
+        }, null, 2));
         throw new Error(`No image data found in Gemini response for ${coverType} cover`);
       }
 
