@@ -27,12 +27,21 @@ interface GenerateImagesParams {
 }
 
 export class ImageGenerationService {
+  // Cache reference photo per book order to avoid redundant DB queries
+  private referencePhotoCache: Map<string, string | null> = new Map();
 
   /**
    * Fetches the child's reference photo URL from Supabase
    * Returns null if no photo is found
+   * CACHED: Only fetches from DB once per book order
    */
   private async getChildReferencePhoto(bookOrderId: string): Promise<string | null> {
+    // Check cache first
+    if (this.referencePhotoCache.has(bookOrderId)) {
+      console.log(`Using cached reference photo for book order ${bookOrderId}`);
+      return this.referencePhotoCache.get(bookOrderId)!;
+    }
+
     try {
       const supabase = getSupabase();
 
@@ -44,15 +53,21 @@ export class ImageGenerationService {
         .eq('image_type', 'child_photo')
         .single();
 
-      if (error || !data) {
+      const photoUrl = (error || !data) ? null : data.storage_url;
+
+      // Cache the result
+      this.referencePhotoCache.set(bookOrderId, photoUrl);
+
+      if (photoUrl) {
+        console.log(`Found and cached reference photo for book order ${bookOrderId}`);
+      } else {
         console.warn(`No reference photo found for book order ${bookOrderId}`);
-        return null;
       }
 
-      console.log(`Found reference photo for book order ${bookOrderId}`);
-      return data.storage_url;
+      return photoUrl;
     } catch (error) {
       console.error('Error fetching reference photo:', error);
+      this.referencePhotoCache.set(bookOrderId, null);
       return null;
     }
   }
@@ -314,10 +329,14 @@ export class ImageGenerationService {
 
       const generatedImages = [];
 
-      // Generate images in batches of 3 to avoid rate limits
-      const batchSize = 3;
+      // Generate images in batches to avoid rate limits while maximizing parallelization
+      // Increased batch size from 3 to 5 for better performance
+      // Replicate typically allows higher concurrency, adjust if rate limit errors occur
+      const batchSize = 5;
       for (let i = 0; i < storyPages.length; i += batchSize) {
         const batch = storyPages.slice(i, i + batchSize);
+        const batchStartTime = Date.now();
+
         const batchPromises = batch.map((page) =>
           this.generateImage({
             bookOrderId,
@@ -329,7 +348,8 @@ export class ImageGenerationService {
         const batchResults = await Promise.all(batchPromises);
         generatedImages.push(...batchResults);
 
-        console.log(`Generated images ${i + 1}-${Math.min(i + batchSize, storyPages.length)} of ${storyPages.length}`);
+        const batchDuration = Math.round((Date.now() - batchStartTime) / 1000);
+        console.log(`Generated images ${i + 1}-${Math.min(i + batchSize, storyPages.length)} of ${storyPages.length} in ${batchDuration}s`);
       }
 
       console.log('All images generated successfully');
@@ -347,20 +367,23 @@ export class ImageGenerationService {
     childFirstName: string;
   }): Promise<any> {
     const { bookOrderId, storyPage, illustrationStyle, childFirstName } = params;
+    const pageStartTime = Date.now();
 
     try {
       const supabase = getSupabase();
 
-      // Fetch child's reference photo
+      // Fetch child's reference photo (cached after first call)
+      const photoFetchStart = Date.now();
       const referenceImageUrl = await this.getChildReferencePhoto(bookOrderId);
+      const photoFetchTime = Date.now() - photoFetchStart;
 
       const prompt = this.buildImagePrompt(storyPage, illustrationStyle, childFirstName);
 
-      console.log(`Generating image for page ${storyPage.page_number} with Seedream 4...`);
-      console.log(`Reference photo: ${referenceImageUrl ? 'Yes' : 'No'}`);
-      console.log(`Prompt: ${prompt.substring(0, 200)}...`);
+      console.log(`[Page ${storyPage.page_number}] Starting generation (photo fetch: ${photoFetchTime}ms)`);
+      console.log(`[Page ${storyPage.page_number}] Reference photo: ${referenceImageUrl ? 'Yes' : 'No'}`);
 
       // Generate image with Seedream 4
+      const genStart = Date.now();
       const replicate = getReplicate();
       const output: any = await replicate.run(
         "bytedance/seedream-4",
@@ -383,41 +406,52 @@ export class ImageGenerationService {
         throw new Error('No image generated from Seedream 4');
       }
 
+      const genTime = Date.now() - genStart;
+      console.log(`[Page ${storyPage.page_number}] AI generation completed in ${Math.round(genTime / 1000)}s`);
+
       // Download the generated image (Replicate returns array of URLs)
+      const downloadStart = Date.now();
       const generatedImageUrl = Array.isArray(output) ? output[0] : output;
       const imageResponse = await axios.get(generatedImageUrl, { responseType: 'arraybuffer' });
       const imageBuffer = Buffer.from(imageResponse.data);
+      const downloadTime = Date.now() - downloadStart;
 
       // Generate thumbnail
+      const thumbStart = Date.now();
       const thumbnail = await sharp(imageBuffer)
         .resize(256, 256)
         .toBuffer();
+      const thumbTime = Date.now() - thumbStart;
 
-      // Upload to Supabase Storage
+      // Upload to Supabase Storage (parallel uploads)
+      const uploadStart = Date.now();
       const imagePath = `${bookOrderId}/page-${storyPage.page_number}.png`;
       const thumbnailPath = `${bookOrderId}/page-${storyPage.page_number}-thumb.png`;
 
-      const { error: uploadError } = await supabase.storage
-        .from('generated-images')
-        .upload(imagePath, imageBuffer, {
+      const [imageUploadResult, thumbUploadResult] = await Promise.allSettled([
+        supabase.storage.from('generated-images').upload(imagePath, imageBuffer, {
           contentType: 'image/png',
           upsert: true,
-        });
-
-      if (uploadError) {
-        throw uploadError;
-      }
-
-      const { error: thumbUploadError } = await supabase.storage
-        .from('generated-images')
-        .upload(thumbnailPath, thumbnail, {
+        }),
+        supabase.storage.from('generated-images').upload(thumbnailPath, thumbnail, {
           contentType: 'image/png',
           upsert: true,
-        });
+        }),
+      ]);
 
-      if (thumbUploadError) {
-        throw thumbUploadError;
+      if (imageUploadResult.status === 'rejected' || imageUploadResult.value.error) {
+        throw imageUploadResult.status === 'rejected'
+          ? imageUploadResult.reason
+          : imageUploadResult.value.error;
       }
+
+      if (thumbUploadResult.status === 'rejected' || thumbUploadResult.value.error) {
+        throw thumbUploadResult.status === 'rejected'
+          ? thumbUploadResult.reason
+          : thumbUploadResult.value.error;
+      }
+
+      const uploadTime = Date.now() - uploadStart;
 
       // Get public URLs
       const { data: { publicUrl: imageUrl } } = supabase.storage
@@ -429,6 +463,7 @@ export class ImageGenerationService {
         .getPublicUrl(thumbnailPath);
 
       // Save to database
+      const dbStart = Date.now();
       const { data: generatedImage, error: dbError } = await supabase
         .from('generated_images')
         .insert({
@@ -449,8 +484,11 @@ export class ImageGenerationService {
       if (dbError) {
         throw dbError;
       }
+      const dbTime = Date.now() - dbStart;
 
-      console.log(`Image generated for page ${storyPage.page_number}`);
+      const totalTime = Date.now() - pageStartTime;
+      console.log(`[Page ${storyPage.page_number}] ✓ Complete in ${Math.round(totalTime / 1000)}s (AI: ${Math.round(genTime / 1000)}s, download: ${downloadTime}ms, thumb: ${thumbTime}ms, upload: ${uploadTime}ms, db: ${dbTime}ms)`);
+
       return generatedImage;
     } catch (error) {
       console.error(`Error generating image for page ${storyPage.page_number}:`, error);
