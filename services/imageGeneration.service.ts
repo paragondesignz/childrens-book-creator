@@ -317,7 +317,7 @@ export class ImageGenerationService {
 
     try {
       const supabase = getSupabase();
-      console.log(`Generating images for ${pages.length} pages...`);
+      console.log(`Generating images for ${pages.length} pages using conversation-based approach for consistency...`);
 
       // Fetch story pages from database to get IDs
       const { data: storyPages, error } = await supabase
@@ -330,32 +330,62 @@ export class ImageGenerationService {
         throw new Error('Failed to fetch story pages');
       }
 
+      // Fetch reference photo ONCE for the entire session
+      const referenceImageUrl = await this.getChildReferencePhoto(bookOrderId);
+      let referenceImageData = null;
+
+      if (referenceImageUrl) {
+        referenceImageData = await urlToBase64(referenceImageUrl);
+        console.log(`Using reference photo for character consistency across all ${storyPages.length} pages`);
+      }
+
+      // START A CHAT SESSION FOR CONSISTENCY
+      const genAI = getGemini();
+      const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-image' });
+
+      // Initialize chat with character context
+      const chat = model.startChat({
+        history: [],
+      });
+
+      // Send initial context message with reference photo
+      if (referenceImageData) {
+        const characterContextPrompt = this.buildCharacterContextPrompt(childFirstName, illustrationStyle);
+        await chat.sendMessage([
+          referenceImageData,
+          { text: characterContextPrompt }
+        ]);
+        console.log('Character context established in conversation');
+      }
+
       const generatedImages = [];
 
-      // Generate images in batches to avoid rate limits while maximizing parallelization
-      // Increased batch size from 3 to 5 for better performance
-      // Replicate typically allows higher concurrency, adjust if rate limit errors occur
-      const batchSize = 5;
-      for (let i = 0; i < storyPages.length; i += batchSize) {
-        const batch = storyPages.slice(i, i + batchSize);
-        const batchStartTime = Date.now();
+      // Generate images SEQUENTIALLY in the same conversation for consistency
+      for (let i = 0; i < storyPages.length; i++) {
+        const page = storyPages[i];
+        console.log(`\n[Page ${page.page_number}] Generating in conversation context (${i + 1}/${storyPages.length})...`);
 
-        const batchPromises = batch.map((page) =>
-          this.generateImage({
+        try {
+          const generatedImage = await this.generateImageInConversation({
+            chat,
             bookOrderId,
             storyPage: page,
             illustrationStyle,
             childFirstName,
-          })
-        );
-        const batchResults = await Promise.all(batchPromises);
-        generatedImages.push(...batchResults);
+            referenceImageData,
+            pageIndex: i,
+            totalPages: storyPages.length,
+          });
 
-        const batchDuration = Math.round((Date.now() - batchStartTime) / 1000);
-        console.log(`Generated images ${i + 1}-${Math.min(i + batchSize, storyPages.length)} of ${storyPages.length} in ${batchDuration}s`);
+          generatedImages.push(generatedImage);
+          console.log(`[Page ${page.page_number}] ✓ Generated successfully (${i + 1}/${storyPages.length} complete)`);
+        } catch (pageError) {
+          console.error(`[Page ${page.page_number}] Failed:`, pageError);
+          throw pageError;
+        }
       }
 
-      console.log('All images generated successfully');
+      console.log(`\n✓ All ${generatedImages.length} images generated successfully with conversation-based consistency`);
       return generatedImages;
     } catch (error) {
       console.error('Image generation error:', error);
@@ -616,6 +646,204 @@ export class ImageGenerationService {
 
     prompt += `MAIN CHARACTER: ${childFirstName} from the reference image provided - maintain EXACT same facial features, hair, and appearance\n\n`;
     prompt += `SCENE COMPOSITION: A decorative, whimsical scene in a magical, enchanting setting that complements the story's theme. Pure visual ${isPhotographic ? 'photograph' : 'illustration'} showcasing ${childFirstName} in a memorable, heartwarming moment. The scene should feel safe, joyful, and age-appropriate, with rich ${isPhotographic ? 'photographic' : 'artistic'} details and a composition that creates emotional connection and wonder.`;
+
+    return prompt;
+  }
+
+  /**
+   * Builds initial character context prompt for establishing consistency
+   */
+  private buildCharacterContextPrompt(childFirstName: string, illustrationStyle: string): string {
+    const styleDescriptions: Record<string, string> = {
+      'photographic': 'photorealistic photographs that look like professional photography',
+      'watercolour': 'soft watercolor paintings',
+      'digital-art': 'modern digital illustrations',
+      'cartoon': 'playful cartoon-style illustrations',
+      'storybook-classic': 'traditional storybook illustrations',
+      'modern-minimal': 'clean, minimalist modern illustrations',
+      'anime': 'Japanese anime-style art',
+      'comic-book': 'bold comic book-style illustrations',
+      'fantasy-realistic': 'detailed fantasy illustrations',
+      'graphic-novel': 'sophisticated graphic novel-style art',
+    };
+
+    const styleDesc = styleDescriptions[illustrationStyle] || 'illustrations';
+    const isPhotographic = illustrationStyle === 'photographic';
+
+    let prompt = `I need you to help me create a children's book with consistent ${styleDesc}.\n\n`;
+    prompt += `CRITICAL CHARACTER REFERENCE:\n`;
+    prompt += `This is ${childFirstName}, the main character of our story. Study this person's appearance VERY carefully:\n`;
+    prompt += `- Exact facial features (face shape, nose, mouth, chin)\n`;
+    prompt += `- Precise hair color, hair style, and hair texture\n`;
+    prompt += `- Specific eye color and eye shape\n`;
+    prompt += `- Skin tone and complexion\n`;
+    prompt += `- Age appearance and body proportions\n`;
+    prompt += `- Any distinctive features or characteristics\n\n`;
+
+    if (isPhotographic) {
+      prompt += `STYLE REQUIREMENTS FOR ALL IMAGES:\n`;
+      prompt += `- Every image must look like a REAL PHOTOGRAPH, not illustrated or drawn\n`;
+      prompt += `- Use natural camera angles and realistic depth of field\n`;
+      prompt += `- Professional photography lighting and composition\n`;
+      prompt += `- Real-world environments, materials, and textures\n`;
+      prompt += `- Authentic photographic aesthetic throughout\n\n`;
+    } else {
+      prompt += `STYLE REQUIREMENTS FOR ALL IMAGES:\n`;
+      prompt += `- Every image must be in the same ${styleDesc} style\n`;
+      prompt += `- Consistent artistic approach across all pages\n`;
+      prompt += `- Coherent visual aesthetic throughout the book\n\n`;
+    }
+
+    prompt += `CONSISTENCY RULES:\n`;
+    prompt += `- ${childFirstName} MUST look EXACTLY the same in every image\n`;
+    prompt += `- Keep the SAME face, hair, eyes, and physical features in all images\n`;
+    prompt += `- ${childFirstName} should be immediately recognizable as the same person\n`;
+    prompt += `- Maintain the exact same visual style for all pages\n`;
+    prompt += `- Only the scene/setting/action should change - NOT ${childFirstName}'s appearance or the art style\n\n`;
+
+    prompt += `Please confirm you understand by acknowledging the character's key features and the style we'll use.`;
+
+    return prompt;
+  }
+
+  /**
+   * Generates a single image within an ongoing conversation for consistency
+   */
+  private async generateImageInConversation(params: {
+    chat: any;
+    bookOrderId: string;
+    storyPage: any;
+    illustrationStyle: string;
+    childFirstName: string;
+    referenceImageData: any;
+    pageIndex: number;
+    totalPages: number;
+  }): Promise<any> {
+    const { chat, bookOrderId, storyPage, illustrationStyle, childFirstName, referenceImageData, pageIndex } = params;
+    const pageStartTime = Date.now();
+
+    try {
+      const supabase = getSupabase();
+
+      // Build the prompt for this specific page
+      const prompt = this.buildConversationalImagePrompt(storyPage, illustrationStyle, childFirstName, pageIndex);
+
+      console.log(`[Page ${storyPage.page_number}] Sending prompt in conversation context...`);
+
+      // Send message in conversation - optionally include reference again for extra reinforcement
+      const messageParts: any[] = [];
+
+      // Include reference image periodically for reinforcement (every 5 pages)
+      if (referenceImageData && (pageIndex === 0 || pageIndex % 5 === 0)) {
+        messageParts.push(referenceImageData);
+        console.log(`[Page ${storyPage.page_number}] Reinforcing reference image`);
+      }
+
+      messageParts.push({ text: prompt });
+
+      const genStart = Date.now();
+      const result = await chat.sendMessage(messageParts);
+      const response = result.response;
+      const genTime = Date.now() - genStart;
+
+      if (!response || !response.candidates || response.candidates.length === 0) {
+        throw new Error('No image generated from Gemini in conversation');
+      }
+
+      console.log(`[Page ${storyPage.page_number}] AI generation completed in ${Math.round(genTime / 1000)}s`);
+
+      // Extract image data from response
+      const candidate = response.candidates[0];
+      let imageBuffer: Buffer | null = null;
+
+      if (candidate.content && candidate.content.parts) {
+        for (const part of candidate.content.parts) {
+          if (part.inlineData && part.inlineData.data) {
+            imageBuffer = Buffer.from(part.inlineData.data, 'base64');
+            break;
+          }
+        }
+      }
+
+      if (!imageBuffer) {
+        throw new Error('No image data found in Gemini response');
+      }
+
+      // Upload to Supabase Storage
+      const uploadStart = Date.now();
+      const imagePath = `${bookOrderId}/page-${storyPage.page_number}.png`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('generated-images')
+        .upload(imagePath, imageBuffer, {
+          contentType: 'image/png',
+          upsert: true,
+        });
+
+      if (uploadError) {
+        throw uploadError;
+      }
+
+      const uploadTime = Date.now() - uploadStart;
+
+      // Get public URL
+      const { data: { publicUrl: imageUrl } } = supabase.storage
+        .from('generated-images')
+        .getPublicUrl(imagePath);
+
+      // Save to database
+      const dbStart = Date.now();
+      const { data: generatedImage, error: dbError } = await supabase
+        .from('generated_images')
+        .insert({
+          book_order_id: bookOrderId,
+          story_page_id: storyPage.id,
+          page_number: storyPage.page_number,
+          image_url: imageUrl,
+          generation_prompt: prompt,
+          width: 2048,
+          height: 2048,
+          content_moderation_passed: false,
+          moderation_flags: {},
+        })
+        .select()
+        .single();
+
+      if (dbError) {
+        throw dbError;
+      }
+      const dbTime = Date.now() - dbStart;
+
+      const totalTime = Date.now() - pageStartTime;
+      console.log(`[Page ${storyPage.page_number}] ✓ Complete in ${Math.round(totalTime / 1000)}s (AI: ${Math.round(genTime / 1000)}s, upload: ${uploadTime}ms, db: ${dbTime}ms)`);
+
+      return generatedImage;
+    } catch (error) {
+      console.error(`Error generating image for page ${storyPage.page_number} in conversation:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Builds a conversational image prompt that maintains context
+   */
+  private buildConversationalImagePrompt(storyPage: any, illustrationStyle: string, childFirstName: string, pageIndex: number): string {
+    const isPhotographic = illustrationStyle === 'photographic';
+
+    let prompt = `Now generate the next image for the story.\n\n`;
+    prompt += `PAGE ${storyPage.page_number} SCENE:\n${storyPage.image_prompt}\n\n`;
+
+    prompt += `CRITICAL REMINDERS:\n`;
+    prompt += `- ${childFirstName} must look EXACTLY the same as in the reference photo and previous images\n`;
+    prompt += `- Keep the SAME facial features, hair, eyes, and appearance\n`;
+    prompt += `- Maintain the ${isPhotographic ? 'photographic' : 'illustration'} style consistently\n`;
+
+    if (isPhotographic) {
+      prompt += `- This MUST look like a real photograph, NOT illustrated or drawn\n`;
+      prompt += `- Use natural camera angles and realistic photography lighting\n`;
+    }
+
+    prompt += `\nCreate this image now, ensuring ${childFirstName} is immediately recognizable as the same person from the reference.`;
 
     return prompt;
   }
