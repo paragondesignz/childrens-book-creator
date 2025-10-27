@@ -312,12 +312,15 @@ export class ImageGenerationService {
     }
   }
 
-  async generateImagesForStory(params: GenerateImagesParams): Promise<any[]> {
-    const { storyId, bookOrderId, pages, illustrationStyle, childFirstName } = params;
+  async generateImagesForStory(params: GenerateImagesParams & {
+    storyTitle: string;
+    generateCovers?: boolean;
+  }): Promise<any[]> {
+    const { storyId, bookOrderId, pages, illustrationStyle, childFirstName, storyTitle, generateCovers = false } = params;
 
     try {
       const supabase = getSupabase();
-      console.log(`Generating images for ${pages.length} pages using conversation-based approach for consistency...`);
+      console.log(`Generating ${generateCovers ? 'covers + ' : ''}${pages.length} pages using conversation-based approach for consistency...`);
 
       // Fetch story pages from database to get IDs
       const { data: storyPages, error } = await supabase
@@ -341,7 +344,13 @@ export class ImageGenerationService {
 
       // START A CHAT SESSION FOR CONSISTENCY
       const genAI = getGemini();
-      const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-image' });
+      const model = genAI.getGenerativeModel({
+        model: 'gemini-2.5-flash-image',
+        generationConfig: {
+          temperature: 0.4, // Lower temperature for better consistency (0.0-1.0, default ~0.9)
+          // Lower = more consistent/deterministic, Higher = more creative/varied
+        },
+      });
 
       // Initialize chat with character context
       const chat = model.startChat({
@@ -360,7 +369,28 @@ export class ImageGenerationService {
 
       const generatedImages = [];
 
-      // Generate images SEQUENTIALLY in the same conversation for consistency
+      // Generate front cover in conversation (if requested)
+      if (generateCovers) {
+        console.log('\n[Front Cover] Generating in conversation context...');
+        try {
+          const frontCoverImage = await this.generateCoverInConversation({
+            chat,
+            bookOrderId,
+            storyTitle,
+            childFirstName,
+            illustrationStyle,
+            referenceImageData,
+            isBackCover: false,
+          });
+          generatedImages.push(frontCoverImage);
+          console.log('[Front Cover] ✓ Generated successfully');
+        } catch (error) {
+          console.error('[Front Cover] Failed:', error);
+          throw error;
+        }
+      }
+
+      // Generate page images SEQUENTIALLY in the same conversation for consistency
       for (let i = 0; i < storyPages.length; i++) {
         const page = storyPages[i];
         console.log(`\n[Page ${page.page_number}] Generating in conversation context (${i + 1}/${storyPages.length})...`);
@@ -382,6 +412,27 @@ export class ImageGenerationService {
         } catch (pageError) {
           console.error(`[Page ${page.page_number}] Failed:`, pageError);
           throw pageError;
+        }
+      }
+
+      // Generate back cover in conversation (if requested)
+      if (generateCovers) {
+        console.log('\n[Back Cover] Generating in conversation context...');
+        try {
+          const backCoverImage = await this.generateCoverInConversation({
+            chat,
+            bookOrderId,
+            storyTitle,
+            childFirstName,
+            illustrationStyle,
+            referenceImageData,
+            isBackCover: true,
+          });
+          generatedImages.push(backCoverImage);
+          console.log('[Back Cover] ✓ Generated successfully');
+        } catch (error) {
+          console.error('[Back Cover] Failed:', error);
+          throw error;
         }
       }
 
@@ -834,6 +885,189 @@ export class ImageGenerationService {
       console.error(`Error generating image for page ${storyPage.page_number} in conversation:`, error);
       throw error;
     }
+  }
+
+  /**
+   * Generates a cover within an ongoing conversation for consistency
+   */
+  private async generateCoverInConversation(params: {
+    chat: any;
+    bookOrderId: string;
+    storyTitle: string;
+    childFirstName: string;
+    illustrationStyle: string;
+    referenceImageData: any;
+    isBackCover: boolean;
+  }): Promise<any> {
+    const { chat, bookOrderId, storyTitle, childFirstName, illustrationStyle, referenceImageData, isBackCover } = params;
+    const coverType = isBackCover ? 'back' : 'front';
+    const pageNumber = isBackCover ? 16 : 0;
+    const coverStartTime = Date.now();
+
+    try {
+      const supabase = getSupabase();
+
+      // Build the cover prompt
+      const prompt = isBackCover
+        ? this.buildConversationalBackCoverPrompt(storyTitle, childFirstName, illustrationStyle)
+        : this.buildConversationalFrontCoverPrompt(storyTitle, childFirstName, illustrationStyle);
+
+      console.log(`[${coverType.toUpperCase()} Cover] Sending prompt in conversation context...`);
+
+      // Send message in conversation with reference reinforcement
+      const messageParts: any[] = [];
+
+      // Always include reference for covers for stronger consistency
+      if (referenceImageData) {
+        messageParts.push(referenceImageData);
+        console.log(`[${coverType.toUpperCase()} Cover] Including reference image`);
+      }
+
+      messageParts.push({ text: prompt });
+
+      const genStart = Date.now();
+      const result = await chat.sendMessage(messageParts);
+      const response = result.response;
+      const genTime = Date.now() - genStart;
+
+      if (!response || !response.candidates || response.candidates.length === 0) {
+        throw new Error(`No ${coverType} cover image generated from Gemini in conversation`);
+      }
+
+      console.log(`[${coverType.toUpperCase()} Cover] AI generation completed in ${Math.round(genTime / 1000)}s`);
+
+      // Extract image data from response
+      const candidate = response.candidates[0];
+      let imageBuffer: Buffer | null = null;
+
+      if (candidate.content && candidate.content.parts) {
+        for (const part of candidate.content.parts) {
+          if (part.inlineData && part.inlineData.data) {
+            imageBuffer = Buffer.from(part.inlineData.data, 'base64');
+            break;
+          }
+        }
+      }
+
+      if (!imageBuffer) {
+        throw new Error(`No image data found in Gemini response for ${coverType} cover`);
+      }
+
+      // Upload to Supabase Storage
+      const uploadStart = Date.now();
+      const imagePath = `${bookOrderId}/cover-${coverType}.png`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('generated-images')
+        .upload(imagePath, imageBuffer, {
+          contentType: 'image/png',
+          upsert: true,
+        });
+
+      if (uploadError) {
+        throw uploadError;
+      }
+
+      const uploadTime = Date.now() - uploadStart;
+
+      // Get public URL
+      const { data: { publicUrl: imageUrl } } = supabase.storage
+        .from('generated-images')
+        .getPublicUrl(imagePath);
+
+      // Save to database
+      const dbStart = Date.now();
+      const { data: generatedImage, error: dbError } = await supabase
+        .from('generated_images')
+        .insert({
+          book_order_id: bookOrderId,
+          story_page_id: null,
+          page_number: pageNumber,
+          image_url: imageUrl,
+          generation_prompt: prompt,
+          width: 2048,
+          height: 2048,
+          content_moderation_passed: false,
+          moderation_flags: {},
+        })
+        .select()
+        .single();
+
+      if (dbError) {
+        throw dbError;
+      }
+      const dbTime = Date.now() - dbStart;
+
+      const totalTime = Date.now() - coverStartTime;
+      console.log(`[${coverType.toUpperCase()} Cover] ✓ Complete in ${Math.round(totalTime / 1000)}s (AI: ${Math.round(genTime / 1000)}s, upload: ${uploadTime}ms, db: ${dbTime}ms)`);
+
+      return generatedImage;
+    } catch (error) {
+      console.error(`Error generating ${coverType} cover in conversation:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Builds a conversational front cover prompt
+   */
+  private buildConversationalFrontCoverPrompt(storyTitle: string, childFirstName: string, illustrationStyle: string): string {
+    const isPhotographic = illustrationStyle === 'photographic';
+
+    let prompt = isPhotographic
+      ? `Now photograph the front cover for our photo story.\n\n`
+      : `Now create the front cover for our story.\n\n`;
+
+    prompt += `FRONT COVER REQUIREMENTS:\n`;
+    prompt += `TITLE: "${storyTitle}"\n`;
+    prompt += `SUBTITLE: "Starring ${childFirstName}"\n\n`;
+
+    prompt += `CRITICAL REMINDERS:\n`;
+    prompt += `- ${childFirstName} must look EXACTLY the same as in the reference photo\n`;
+    prompt += `- Keep the SAME facial features, hair, eyes, and appearance we've established\n`;
+    prompt += `- Maintain the ${isPhotographic ? 'photographic' : 'illustration'} style consistently\n`;
+
+    if (isPhotographic) {
+      prompt += `- This MUST be a REAL PHOTOGRAPH shot with a camera\n`;
+      prompt += `- Professional cover photography - magazine/editorial quality\n`;
+      prompt += `- Natural lighting, realistic depth of field, authentic photographic look\n`;
+    }
+
+    prompt += `\n- Render the title "${storyTitle}" prominently at the top in large, bold, playful font\n`;
+    prompt += `- Render "Starring ${childFirstName}" at the bottom in elegant script\n`;
+    prompt += `- ${childFirstName} should be the hero in an enchanting scene\n`;
+    prompt += `\n${isPhotographic ? 'Photograph' : 'Create'} this cover now, keeping ${childFirstName} immediately recognizable.`;
+
+    return prompt;
+  }
+
+  /**
+   * Builds a conversational back cover prompt
+   */
+  private buildConversationalBackCoverPrompt(storyTitle: string, childFirstName: string, illustrationStyle: string): string {
+    const isPhotographic = illustrationStyle === 'photographic';
+
+    let prompt = isPhotographic
+      ? `Now photograph the back cover for our photo story.\n\n`
+      : `Now create the back cover for our story.\n\n`;
+
+    prompt += `BACK COVER REQUIREMENTS:\n`;
+    prompt += `- Decorative, whimsical scene complementing the story\n`;
+    prompt += `- ${childFirstName} in a memorable, heartwarming moment\n\n`;
+
+    prompt += `CRITICAL REMINDERS:\n`;
+    prompt += `- ${childFirstName} must look EXACTLY the same as throughout the story\n`;
+    prompt += `- Keep the SAME facial features, hair, eyes, and appearance\n`;
+    prompt += `- Maintain the ${isPhotographic ? 'photographic' : 'illustration'} style we've used\n`;
+
+    if (isPhotographic) {
+      prompt += `- This MUST be a REAL PHOTOGRAPH matching the front cover and story pages\n`;
+      prompt += `- Professional photography with natural lighting and authentic look\n`;
+    }
+
+    prompt += `\n${isPhotographic ? 'Photograph' : 'Create'} this back cover now, ensuring ${childFirstName} is consistent with all previous images.`;
+
+    return prompt;
   }
 
   /**
