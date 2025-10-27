@@ -100,11 +100,14 @@ export function CreateBookWizard({ templates }: CreateBookWizardProps) {
 
         if (uploadError) throw uploadError;
 
-        const { data: { publicUrl } } = supabase.storage
+        // Use signed URL instead of public URL since temp-uploads bucket is private
+        const { data: signedUrlData, error: signedUrlError } = await supabase.storage
           .from('temp-uploads')
-          .getPublicUrl(fileName);
+          .createSignedUrl(fileName, 86400); // 24 hours
 
-        childPhotoUrl = publicUrl;
+        if (signedUrlError) throw signedUrlError;
+
+        childPhotoUrl = signedUrlData.signedUrl;
       }
 
       // Upload pet photos
@@ -123,11 +126,14 @@ export function CreateBookWizard({ templates }: CreateBookWizardProps) {
 
             if (uploadError) throw uploadError;
 
-            const { data: { publicUrl } } = supabase.storage
+            // Use signed URL instead of public URL since temp-uploads bucket is private
+            const { data: signedUrlData, error: signedUrlError } = await supabase.storage
               .from('temp-uploads')
-              .getPublicUrl(fileName);
+              .createSignedUrl(fileName, 86400); // 24 hours
 
-            return { ...pet, photoUrl: publicUrl };
+            if (signedUrlError) throw signedUrlError;
+
+            return { ...pet, photoUrl: signedUrlData.signedUrl };
           }
           return pet;
         })
