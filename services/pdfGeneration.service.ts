@@ -109,8 +109,11 @@ export class PDFGenerationService {
     bookOrderId: string;
   }): Promise<Buffer> {
     return new Promise(async (resolve, reject) => {
+      // Square format: 8" x 8" (576 points)
+      const SQUARE_SIZE = 576;
+
       const doc = new PDFDocument({
-        size: [612, 792], // 8.5" x 11" in points
+        size: [SQUARE_SIZE, SQUARE_SIZE],
         margins: { top: 50, bottom: 50, left: 50, right: 50 },
         info: {
           Title: data.title,
@@ -154,24 +157,22 @@ export class PDFGenerationService {
               const response = await axios.get(image.image_url, { responseType: 'arraybuffer' });
               const imageBuffer = Buffer.from(response.data);
 
-              // Add image as full-bleed (edge to edge)
-              const pageWidth = 612;
-              const pageHeight = 792;
+              // Add square image as full-bleed (edge to edge)
+              const SQUARE_SIZE = 576;
 
               doc.image(imageBuffer, 0, 0, {
-                width: pageWidth,
-                height: pageHeight,
+                width: SQUARE_SIZE,
+                height: SQUARE_SIZE,
                 align: 'center',
                 valign: 'center',
               });
             } catch (imgError) {
               console.error(`Failed to load image for page ${page.page_number}:`, imgError);
-              // Fallback: show placeholder
-              this.addImagePlaceholder(doc, page.page_number);
+              // Don't add placeholder - just skip the image page
+              console.warn(`Skipping image page ${page.page_number} due to load error`);
             }
           } else {
-            // No image available, show placeholder
-            this.addImagePlaceholder(doc, page.page_number);
+            console.warn(`No image found for page ${page.page_number}, skipping image page`);
           }
         }
 
@@ -198,13 +199,12 @@ export class PDFGenerationService {
       const response = await axios.get(imageUrl, { responseType: 'arraybuffer' });
       const imageBuffer = Buffer.from(response.data);
 
-      // Add image as full-bleed (no margins for covers)
-      const pageWidth = 612;
-      const pageHeight = 792;
+      // Add square image as full-bleed (no margins for covers)
+      const SQUARE_SIZE = 576;
 
       doc.image(imageBuffer, 0, 0, {
-        width: pageWidth,
-        height: pageHeight,
+        width: SQUARE_SIZE,
+        height: SQUARE_SIZE,
         align: 'center',
         valign: 'center',
       });
@@ -221,24 +221,23 @@ export class PDFGenerationService {
       const response = await axios.get(imageUrl, { responseType: 'arraybuffer' });
       const imageBuffer = Buffer.from(response.data);
 
-      // Add image as full-bleed
-      const pageWidth = 612;
-      const pageHeight = 792;
+      // Add square image as full-bleed
+      const SQUARE_SIZE = 576;
 
       doc.image(imageBuffer, 0, 0, {
-        width: pageWidth,
-        height: pageHeight,
+        width: SQUARE_SIZE,
+        height: SQUARE_SIZE,
         align: 'center',
         valign: 'center',
       });
 
       // Add text overlay with semi-transparent background
       const textMargin = 60;
-      const textWidth = pageWidth - (textMargin * 2);
+      const textWidth = SQUARE_SIZE - (textMargin * 2);
 
       // Add semi-transparent white rectangle for text readability
       doc.save();
-      doc.rect(textMargin, pageHeight / 2 - 100, textWidth, 200)
+      doc.rect(textMargin, SQUARE_SIZE / 2 - 100, textWidth, 200)
         .fillOpacity(0.85)
         .fill('white');
       doc.restore();
@@ -251,7 +250,7 @@ export class PDFGenerationService {
         .text(
           `A personalized adventure created especially for this story.`,
           textMargin + 20,
-          pageHeight / 2 - 60,
+          SQUARE_SIZE / 2 - 60,
           {
             align: 'center',
             width: textWidth - 40,
@@ -265,7 +264,7 @@ export class PDFGenerationService {
         .text(
           'Created with Personalized Children\'s Storybooks',
           textMargin,
-          pageHeight - 80,
+          SQUARE_SIZE - 80,
           {
             align: 'center',
             width: textWidth,
@@ -302,46 +301,44 @@ export class PDFGenerationService {
   }
 
   private addTextPage(doc: PDFKit.PDFDocument, page: any): void {
-    // White background with generous margins
-    const margin = 80;
-    const pageWidth = 612;
-    const pageHeight = 792;
-    const textWidth = pageWidth - (margin * 2);
+    // Square page with generous margins
+    const SQUARE_SIZE = 576;
+    const margin = 60;
+    const textWidth = SQUARE_SIZE - (margin * 2);
 
-    // Use Baskerville font (elegant serif, perfect for children's books)
+    // Use Baskerville-style font (elegant serif, perfect for children's books)
     // PDFKit includes Times-Roman as fallback if Baskerville not available
     const fontFamily = 'Times-Roman'; // Closest built-in to Baskerville
 
-    // Add story text with comfortable reading size
+    // Add story text CENTERED both horizontally and vertically
     doc.fontSize(16)
       .font(fontFamily)
       .fillColor('#000000')
-      .text(page.page_text, margin, 150, {
-        align: 'left',
+      .text(page.page_text, margin, SQUARE_SIZE / 2 - 100, {
+        align: 'center',
         width: textWidth,
         lineGap: 8,
       });
 
-    // Small page number at bottom
+    // Small page number at bottom center
     doc.fontSize(10)
       .fillColor('#999999')
-      .text(`${page.page_number}`, margin, pageHeight - 40, {
+      .text(`${page.page_number}`, margin, SQUARE_SIZE - 40, {
         align: 'center',
         width: textWidth,
       });
   }
 
   private addImagePlaceholder(doc: PDFKit.PDFDocument, pageNumber: number): void {
-    // Simple placeholder for missing images
-    const pageWidth = 612;
-    const pageHeight = 792;
+    // Simple placeholder for missing images (square format)
+    const SQUARE_SIZE = 576;
 
     doc.fontSize(14)
       .font('Helvetica')
       .fillColor('#cccccc')
-      .text(`[Image ${pageNumber}]`, 0, pageHeight / 2 - 20, {
+      .text(`[Image ${pageNumber}]`, 0, SQUARE_SIZE / 2 - 20, {
         align: 'center',
-        width: pageWidth,
+        width: SQUARE_SIZE,
       })
       .fillColor('#000000');
   }
