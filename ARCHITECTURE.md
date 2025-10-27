@@ -140,7 +140,7 @@ The codebase contains BullMQ/Redis code in `/lib/workers` and `/lib/queues` but 
 - **draft** - Book configured but not paid
 - **processing** - Payment received, waiting for/in processing
 - **generating-story** - Creating story text with AI
-- **generating-images** - Creating 15 illustrations
+- **generating-images** - Creating 8 illustrations (6 story pages + 2 covers)
 - **creating-pdf** - Assembling final PDF
 - **completed** - Book ready for download
 - **failed** - Error occurred (with error_message)
@@ -163,7 +163,7 @@ The codebase contains BullMQ/Redis code in `/lib/workers` and `/lib/queues` but 
 - Error logging
 
 **generated_stories** - AI-generated story content
-- Full story JSON (title + 15 pages)
+- Full story JSON (title + 6 pages)
 - Generation metadata
 - Moderation flags
 

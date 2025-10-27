@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a web application that creates AI-generated personalized children's storybooks. Parents can upload photos of their child (and pets), select story templates or create custom stories, and receive a professionally formatted 15-page illustrated e-book as a PDF or printed book.
+This is a web application that creates AI-generated personalized children's storybooks. Parents can upload photos of their child (and pets), select story templates or create custom stories, and receive a professionally formatted illustrated e-book (6 story pages plus covers) as a PDF or printed book.
 
 **Key Technologies:**
 - Frontend: Next.js 14+ (App Router), TypeScript, React 18+, Tailwind CSS
@@ -43,10 +43,10 @@ The application follows a service-oriented architecture with clear separation of
 - GDPR/Privacy Act compliance required
 
 **Character Consistency Challenge:**
-The hardest technical problem is maintaining consistent character appearance across 15 illustrations. Use reference images in every Gemini prompt + detailed character descriptions. Consider extracting visual embeddings from reference photos if Gemini API supports it.
+The hardest technical problem is maintaining consistent character appearance across 8 illustrations (6 story pages + 2 covers). Use reference images in every Gemini prompt + detailed character descriptions. Consider extracting visual embeddings from reference photos if Gemini API supports it.
 
 **Asynchronous Processing:**
-Book generation takes 9-17 minutes (text: 30-60s, images: 7.5-15 mins for 15 images, PDF: 30-60s). All processing MUST happen in background queues (Bull/BullMQ) with real-time status updates to users via WebSocket or polling.
+Book generation takes 5-9 minutes (text: 30-60s, images: 4-8 mins for 8 images, PDF: 30-60s). All processing MUST happen in background queues (Bull/BullMQ) with real-time status updates to users via WebSocket or polling.
 
 ## Database Schema
 
@@ -208,7 +208,7 @@ Prompts are critical. Store prompt templates separately:
 ```typescript
 // prompts/storyGeneration.prompts.ts
 export const buildStoryPrompt = (config: BookConfiguration, template: StoryTemplate): string => {
-  return `Write a 15-page children's story for ${config.childInfo.firstName}, a ${config.childInfo.age}-year-old child.
+  return `Write a 6-page children's story for ${config.childInfo.firstName}, a ${config.childInfo.age}-year-old child.
 
 Story Template: ${template.title}
 ${template.description}
@@ -222,7 +222,7 @@ Requirements:
 - Age-appropriate language for ${config.childInfo.age}-year-olds
 - Positive, encouraging themes
 - ${config.childInfo.firstName} should be the protagonist and hero
-- Story should be exactly 15 pages
+- Story should be exactly 6 pages
 - Each page should have 50-100 words
 - Include engaging dialogue
 - Educational elements appropriate for age
@@ -359,9 +359,9 @@ Critical environment variables (see section 17.2 of tech spec for full list):
 
 - Homepage load: < 2 seconds
 - API endpoints: < 500ms (except file uploads)
-- Book generation total: 9-17 minutes (this is acceptable, set user expectations)
+- Book generation total: 5-9 minutes (this is acceptable, set user expectations)
 - Text generation: 30-60 seconds
-- Image generation: 30-60 seconds per image (15 images = 7.5-15 mins)
+- Image generation: 30-60 seconds per image (8 images = 4-8 mins)
 - PDF generation: 30-60 seconds
 
 Use parallel processing where possible:

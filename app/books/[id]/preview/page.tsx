@@ -99,7 +99,7 @@ export default async function BookPreviewPage({ params }: { params: { id: string
               <div>
                 <h3 className="font-semibold text-green-900 mb-1">Your Story is Ready!</h3>
                 <p className="text-sm text-green-800">
-                  We've created a personalized {book.generated_story?.page_count || 15}-page storybook featuring {book.child_first_name}. Download the PDF below to read, print, or share!
+                  We've created a personalized illustrated storybook featuring {book.child_first_name}. Download the PDF below to read, print, or share!
                 </p>
               </div>
             </div>
@@ -133,8 +133,8 @@ export default async function BookPreviewPage({ params }: { params: { id: string
               <h3 className="font-semibold text-lg mb-4">Book Details</h3>
               <div className="space-y-3 text-sm">
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Pages:</span>
-                  <span className="font-medium">{book.generated_story?.page_count || 15}</span>
+                  <span className="text-gray-600">Story Pages:</span>
+                  <span className="font-medium">{book.generated_story?.page_count || 6}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">Style:</span>
