@@ -13,7 +13,6 @@ interface StatusMonitorProps {
 interface GeneratedImage {
   id: string;
   page_number: number;
-  thumbnail_url: string;
   image_url: string;
 }
 
@@ -38,7 +37,7 @@ export function StatusMonitor({ bookId, initialStatus }: StatusMonitorProps) {
     const fetchExistingImages = async () => {
       const { data } = await supabase
         .from('generated_images')
-        .select('id, page_number, thumbnail_url, image_url')
+        .select('id, page_number, image_url')
         .eq('book_order_id', bookId)
         .order('page_number', { ascending: true });
 
@@ -126,7 +125,7 @@ export function StatusMonitor({ bookId, initialStatus }: StatusMonitorProps) {
       // Also poll for new images
       const { data: images } = await supabase
         .from('generated_images')
-        .select('id, page_number, thumbnail_url, image_url')
+        .select('id, page_number, image_url')
         .eq('book_order_id', bookId)
         .order('page_number', { ascending: true });
 
@@ -246,7 +245,7 @@ export function StatusMonitor({ bookId, initialStatus }: StatusMonitorProps) {
                 style={{ animationDelay: `${index * 100}ms` }}
               >
                 <Image
-                  src={image.thumbnail_url || image.image_url}
+                  src={image.image_url}
                   alt={`Page ${image.page_number}`}
                   fill
                   className="object-cover"

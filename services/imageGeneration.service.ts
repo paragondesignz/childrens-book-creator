@@ -500,7 +500,7 @@ export class ImageGenerationService {
       'cartoon': 'Playful cartoon style with bold black outlines, exaggerated features, and bright saturated colors. Fun and energetic.',
       'storybook-classic': 'Traditional storybook illustration in the style of classic children\'s literature. Warm, timeless, and nostalgic with detailed linework.',
       'modern-minimal': 'Clean modern illustration with simple geometric shapes, limited color palette, and minimalist design. Contemporary and sophisticated.',
-      'photographic': 'Photorealistic rendering with natural lighting, detailed textures, and lifelike appearance. Highly realistic and dimensional.',
+      'photographic': 'Photorealistic photograph with natural lighting, detailed textures, and lifelike appearance. Shot with professional camera, realistic depth of field, authentic photography, NOT illustrated or drawn. Real-world photography aesthetic with natural colors and lighting.',
       'anime': 'Japanese anime art style with large expressive eyes, dynamic poses, and cel-shaded coloring. Energetic and stylized.',
       'comic-book': 'Bold comic book style with dynamic action poses, vibrant primary colors, strong shadows, and dramatic composition. Superhero aesthetic.',
       'fantasy-realistic': 'Detailed fantasy illustration combining realistic rendering with magical elements. Rich colors, dramatic lighting, and intricate details.',
@@ -509,20 +509,34 @@ export class ImageGenerationService {
 
     const styleGuide = styleGuides[illustrationStyle] || styleGuides['watercolour'];
 
-    // Build comprehensive prompt for Gemini
-    let prompt = `Create a professional children's book illustration.\n\n`;
-    prompt += `STYLE: ${styleGuide}\n\n`;
+    // Adaptive opening based on style - photographic needs different language
+    const isPhotographic = illustrationStyle === 'photographic';
+    let prompt = isPhotographic
+      ? `Create a professional photorealistic children's book image that looks like a real photograph.\n\n`
+      : `Create a professional children's book illustration.\n\n`;
+
+    prompt += `VISUAL STYLE: ${styleGuide}\n\n`;
+
+    if (isPhotographic) {
+      prompt += `CRITICAL - PHOTOREALISTIC REQUIREMENTS:\n`;
+      prompt += `- This must look like a REAL PHOTOGRAPH, not an illustration or drawing\n`;
+      prompt += `- Use natural camera angles and realistic depth of field\n`;
+      prompt += `- Natural lighting as if photographed in real life\n`;
+      prompt += `- Real-world textures, materials, and environments\n`;
+      prompt += `- Authentic photography aesthetic - absolutely NO illustrated or painted look\n\n`;
+    }
+
     prompt += `IMPORTANT CHARACTER CONSISTENCY:\n`;
     prompt += `- The main character is ${childFirstName}, shown in the reference image provided\n`;
     prompt += `- Keep the EXACT same face, hair color, hair style, eye color, and physical features from the reference\n`;
     prompt += `- Ensure ${childFirstName} is immediately recognizable as the same person\n`;
     prompt += `- Maintain consistent age appearance and proportions\n\n`;
     prompt += `SCENE: ${storyPage.image_prompt}\n\n`;
-    prompt += `REQUIREMENTS:\n`;
-    prompt += `- Full-page pure illustration focusing entirely on the visual scene\n`;
+    prompt += `COMPOSITION REQUIREMENTS:\n`;
+    prompt += `- Full-page ${isPhotographic ? 'photograph' : 'illustration'} focusing entirely on the visual scene\n`;
     prompt += `- Bright, inviting, child-friendly colors that spark joy\n`;
     prompt += `- Safe, warm, age-appropriate content perfect for young readers\n`;
-    prompt += `- Professional storybook quality with rich details and textures\n`;
+    prompt += `- Professional ${isPhotographic ? 'photography' : 'storybook'} quality with rich details and textures\n`;
     prompt += `- ${childFirstName} as the clear focal point of the composition\n`;
     prompt += `- Engaging, dynamic composition that captures attention and imagination`;
 
@@ -536,7 +550,7 @@ export class ImageGenerationService {
       'cartoon': 'Playful cartoon style with bold outlines and bright colors',
       'storybook-classic': 'Traditional storybook illustration, warm and timeless',
       'modern-minimal': 'Clean modern illustration with simple shapes',
-      'photographic': 'Photorealistic rendering with natural lighting',
+      'photographic': 'Photorealistic photograph with natural lighting and real-world photography aesthetic, NOT illustrated or drawn',
       'anime': 'Japanese anime art style with expressive features',
       'comic-book': 'Bold comic book style with dynamic composition',
       'fantasy-realistic': 'Detailed fantasy illustration with realistic rendering',
@@ -544,13 +558,26 @@ export class ImageGenerationService {
     };
 
     const styleGuide = styleGuides[illustrationStyle] || styleGuides['watercolour'];
+    const isPhotographic = illustrationStyle === 'photographic';
 
-    let prompt = `Create a stunning children's book front cover illustration.\n\n`;
+    let prompt = isPhotographic
+      ? `Create a stunning children's book front cover that looks like a professional photograph.\n\n`
+      : `Create a stunning children's book front cover illustration.\n\n`;
+
     prompt += `TEXT TO RENDER:\n`;
     prompt += `- At the top of the cover, render the title text "${storyTitle}" in large, bold, playful serif font suitable for children's books\n`;
     prompt += `- At the bottom of the cover, render the subtitle "Starring ${childFirstName}" in an elegant, flowing script font\n`;
     prompt += `- Ensure all text is perfectly legible, well-spaced, and professionally typeset\n\n`;
     prompt += `VISUAL STYLE: ${styleGuide} with vibrant, inviting colors and professional book cover aesthetic\n\n`;
+
+    if (isPhotographic) {
+      prompt += `CRITICAL - PHOTOREALISTIC REQUIREMENTS:\n`;
+      prompt += `- This must look like a REAL PHOTOGRAPH, not an illustration or drawing\n`;
+      prompt += `- Natural camera angles and realistic depth of field\n`;
+      prompt += `- Authentic photography lighting and composition\n`;
+      prompt += `- Real-world environment and materials\n\n`;
+    }
+
     prompt += `MAIN CHARACTER: ${childFirstName} from the reference image provided - maintain EXACT same facial features, hair, and appearance\n\n`;
     prompt += `SCENE COMPOSITION: Feature ${childFirstName} as the hero in an enchanting, magical scene that sparks imagination. The character should be prominently displayed in the center-lower portion of the cover, with the scene creating a sense of wonder and adventure. Rich details, dynamic lighting, and a composition that draws the eye to both the character and the title text.`;
 
@@ -564,7 +591,7 @@ export class ImageGenerationService {
       'cartoon': 'Playful cartoon style with bold outlines',
       'storybook-classic': 'Traditional storybook illustration',
       'modern-minimal': 'Clean modern illustration',
-      'photographic': 'Photorealistic rendering',
+      'photographic': 'Photorealistic photograph with natural lighting, NOT illustrated or drawn',
       'anime': 'Japanese anime art style',
       'comic-book': 'Bold comic book style',
       'fantasy-realistic': 'Detailed fantasy illustration',
@@ -572,11 +599,23 @@ export class ImageGenerationService {
     };
 
     const styleGuide = styleGuides[illustrationStyle] || styleGuides['watercolour'];
+    const isPhotographic = illustrationStyle === 'photographic';
 
-    let prompt = `Create a beautiful children's book back cover illustration.\n\n`;
+    let prompt = isPhotographic
+      ? `Create a beautiful children's book back cover that looks like a professional photograph.\n\n`
+      : `Create a beautiful children's book back cover illustration.\n\n`;
+
     prompt += `VISUAL STYLE: ${styleGuide} with warm, inviting colors and professional book cover aesthetic\n\n`;
+
+    if (isPhotographic) {
+      prompt += `CRITICAL - PHOTOREALISTIC REQUIREMENTS:\n`;
+      prompt += `- This must look like a REAL PHOTOGRAPH, not an illustration\n`;
+      prompt += `- Natural camera angles and authentic photography aesthetic\n`;
+      prompt += `- Real-world lighting and environment\n\n`;
+    }
+
     prompt += `MAIN CHARACTER: ${childFirstName} from the reference image provided - maintain EXACT same facial features, hair, and appearance\n\n`;
-    prompt += `SCENE COMPOSITION: A decorative, whimsical scene in a magical, enchanting setting that complements the story's theme. Pure visual illustration showcasing ${childFirstName} in a memorable, heartwarming moment. The scene should feel safe, joyful, and age-appropriate, with rich artistic details and a composition that creates emotional connection and wonder.`;
+    prompt += `SCENE COMPOSITION: A decorative, whimsical scene in a magical, enchanting setting that complements the story's theme. Pure visual ${isPhotographic ? 'photograph' : 'illustration'} showcasing ${childFirstName} in a memorable, heartwarming moment. The scene should feel safe, joyful, and age-appropriate, with rich ${isPhotographic ? 'photographic' : 'artistic'} details and a composition that creates emotional connection and wonder.`;
 
     return prompt;
   }
