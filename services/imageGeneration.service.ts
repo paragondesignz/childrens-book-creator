@@ -1092,7 +1092,7 @@ export class ImageGenerationService {
     const isPhotographic = illustrationStyle === 'photographic';
 
     let prompt = isPhotographic
-      ? `Now take a professional photograph for the front cover.\n\n`
+      ? `Now create a photorealistic illustration for the front cover.\n\n`
       : `Now create the front cover for our story.\n\n`;
 
     prompt += `FRONT COVER REQUIREMENTS:\n`;
@@ -1106,14 +1106,14 @@ export class ImageGenerationService {
     prompt += `   - ${childFirstName} must be immediately recognizable\n\n`;
 
     if (isPhotographic) {
-      prompt += `2. PHOTOGRAPHY STYLE (NOT ILLUSTRATION):\n`;
-      prompt += `   - This MUST be a REAL PHOTOGRAPH - professional cover photography\n`;
-      prompt += `   - DO NOT create illustration, drawing, digital art, or painting\n`;
-      prompt += `   - Professional DSLR camera aesthetic - Canon, Nikon, Sony quality\n`;
-      prompt += `   - Magazine or editorial cover photography style\n`;
-      prompt += `   - Natural photographic lighting - golden hour, studio lights, or window light\n`;
-      prompt += `   - Authentic photographic depth of field and bokeh\n`;
-      prompt += `   - Real physical environment, not illustrated background\n\n`;
+      prompt += `2. PHOTOREALISTIC ILLUSTRATION STYLE:\n`;
+      prompt += `   - Create a PHOTOREALISTIC ILLUSTRATION with lifelike details\n`;
+      prompt += `   - Professional photography aesthetic - Canon, Nikon, Sony quality\n`;
+      prompt += `   - Magazine or editorial cover style with realistic rendering\n`;
+      prompt += `   - Natural lighting effects - golden hour, studio lights, or window light\n`;
+      prompt += `   - Authentic depth of field and bokeh effects\n`;
+      prompt += `   - Realistic textures, lighting, and atmospheric perspective\n`;
+      prompt += `   - Should look like a professional photograph but rendered as illustration\n\n`;
     } else {
       prompt += `2. ILLUSTRATION STYLE (CRITICAL - MAINTAIN EXACT STYLE):\n`;
       prompt += this.getDetailedStyleInstructions(illustrationStyle);
@@ -1125,7 +1125,7 @@ export class ImageGenerationService {
     prompt += `   - Render "Starring ${childFirstName}" at bottom in elegant script\n`;
     prompt += `   - ${childFirstName} as the hero in an enchanting scene\n\n`;
 
-    prompt += `${isPhotographic ? 'Take the photograph' : 'Create the cover'} now. Remember: ${childFirstName} must match the reference photo exactly, and this must be a ${isPhotographic ? 'real photograph, NOT illustrated' : 'professional illustration'}.`;
+    prompt += `Create the cover now. Remember: ${childFirstName} must match the reference photo exactly, and this must be a ${isPhotographic ? 'photorealistic illustration with professional photography quality' : 'professional illustration'}.`;
 
     return prompt;
   }
@@ -1137,7 +1137,7 @@ export class ImageGenerationService {
     const isPhotographic = illustrationStyle === 'photographic';
 
     let prompt = isPhotographic
-      ? `Now take a professional photograph for the back cover.\n\n`
+      ? `Now create a photorealistic illustration for the back cover.\n\n`
       : `Now create the back cover for our story.\n\n`;
 
     prompt += `BACK COVER REQUIREMENTS:\n`;
@@ -1152,19 +1152,19 @@ export class ImageGenerationService {
     prompt += `   - Perfect consistency with front cover and story pages\n\n`;
 
     if (isPhotographic) {
-      prompt += `2. PHOTOGRAPHY STYLE (NOT ILLUSTRATION):\n`;
-      prompt += `   - This MUST be a REAL PHOTOGRAPH matching all previous photos\n`;
-      prompt += `   - DO NOT create illustration, drawing, or digital art\n`;
-      prompt += `   - Professional DSLR camera quality - same as front cover\n`;
-      prompt += `   - Natural photographic lighting and authentic camera bokeh\n`;
-      prompt += `   - Real physical environment and authentic photography\n\n`;
+      prompt += `2. PHOTOREALISTIC ILLUSTRATION STYLE:\n`;
+      prompt += `   - Create a PHOTOREALISTIC ILLUSTRATION matching all previous images\n`;
+      prompt += `   - Professional photography aesthetic - same quality as front cover\n`;
+      prompt += `   - Natural lighting effects and authentic depth of field\n`;
+      prompt += `   - Realistic rendering with photographic quality\n`;
+      prompt += `   - Should look like a professional photograph but rendered as illustration\n\n`;
     } else {
       prompt += `2. ILLUSTRATION STYLE (CRITICAL - MAINTAIN EXACT STYLE):\n`;
       prompt += this.getDetailedStyleInstructions(illustrationStyle);
       prompt += `\n`;
     }
 
-    prompt += `${isPhotographic ? 'Take the photograph' : 'Create the back cover'} now. Remember: ${childFirstName} must be identical to all previous images, and this must be ${isPhotographic ? 'a real photograph, NOT illustrated or drawn' : 'an illustration'}.`;
+    prompt += `Create the back cover now. Remember: ${childFirstName} must be identical to all previous images, and this must be ${isPhotographic ? 'a photorealistic illustration with professional photography quality' : 'an illustration'}.`;
 
     return prompt;
   }
