@@ -1070,9 +1070,9 @@ export class ImageGenerationService {
       prompt += `   - Authentic photographic depth of field and bokeh\n`;
       prompt += `   - Real physical environment, not illustrated background\n\n`;
     } else {
-      prompt += `2. ILLUSTRATION STYLE:\n`;
-      prompt += `   - Professional children's book cover illustration\n`;
-      prompt += `   - Match the style we've established\n\n`;
+      prompt += `2. ILLUSTRATION STYLE (CRITICAL - MAINTAIN EXACT STYLE):\n`;
+      prompt += this.getDetailedStyleInstructions(illustrationStyle);
+      prompt += `\n`;
     }
 
     prompt += `3. TEXT AND COMPOSITION:\n`;
@@ -1114,9 +1114,9 @@ export class ImageGenerationService {
       prompt += `   - Natural photographic lighting and authentic camera bokeh\n`;
       prompt += `   - Real physical environment and authentic photography\n\n`;
     } else {
-      prompt += `2. ILLUSTRATION STYLE:\n`;
-      prompt += `   - Match the exact illustration style from previous images\n`;
-      prompt += `   - Consistent artistic approach\n\n`;
+      prompt += `2. ILLUSTRATION STYLE (CRITICAL - MAINTAIN EXACT STYLE):\n`;
+      prompt += this.getDetailedStyleInstructions(illustrationStyle);
+      prompt += `\n`;
     }
 
     prompt += `${isPhotographic ? 'Take the photograph' : 'Create the back cover'} now. Remember: ${childFirstName} must be identical to all previous images, and this must be ${isPhotographic ? 'a real photograph, NOT illustrated or drawn' : 'an illustration'}.`;
@@ -1127,6 +1127,107 @@ export class ImageGenerationService {
   /**
    * Builds a conversational image prompt that maintains context
    */
+  private getDetailedStyleInstructions(illustrationStyle: string): string {
+    const styleInstructions: Record<string, string> = {
+      'watercolour': `   - WATERCOLOUR PAINTING style - soft, flowing brushstrokes with visible paper texture
+   - Use translucent, layered washes of color that blend into each other naturally
+   - Show watercolor bleeding and feathering effects at edges
+   - Soft, diffused edges (NOT hard lines or digital-looking)
+   - Gentle gradients from light to dark within each color area
+   - White paper showing through in lighter areas for luminosity
+   - Organic, hand-painted feel with slight color variations
+   - Dreamy, delicate aesthetic like children's picture books from the 1980s-90s
+   - Think Beatrix Potter, Jill Barklem, or modern watercolor illustrators
+   - AVOID: Digital-looking gradients, perfect smooth colors, hard edges`,
+
+      'digital-art': `   - MODERN DIGITAL ILLUSTRATION - smooth, polished, contemporary style
+   - Clean vector-like shapes with smooth gradients and soft shadows
+   - Vibrant, saturated colors with professional color harmony
+   - Subtle texture overlays for depth (canvas texture, grain, or noise)
+   - Crisp, controlled edges with occasional soft focus for depth
+   - Dimensional lighting with highlights, midtones, and shadows
+   - Stylized but detailed rendering - not flat or overly simple
+   - Contemporary children's book aesthetic (think Pete the Cat, modern picture books)
+   - Professional finish like Procreate or Adobe Illustrator artwork
+   - AVOID: Rough sketchy lines, watercolor bleeding, overly realistic rendering`,
+
+      'cartoon': `   - CLASSIC CARTOON STYLE - bold, playful, energetic aesthetic
+   - THICK black ink outlines around all shapes and characters (2-3px weight)
+   - Exaggerated features: large expressive eyes, simplified shapes, bouncy proportions
+   - Bright, saturated primary and secondary colors
+   - Flat color fills with minimal shading (cel-shaded look)
+   - Simple backgrounds with bold shapes and patterns
+   - Dynamic, expressive poses with motion lines when appropriate
+   - Fun, whimsical details and playful compositions
+   - Think classic animation style (Disney, Warner Bros, modern cartoons)
+   - AVOID: Realistic rendering, subtle colors, photo-realistic details`,
+
+      'storybook-classic': `   - TRADITIONAL STORYBOOK ILLUSTRATION - warm, timeless, nostalgic
+   - Detailed pen-and-ink linework with crosshatching and fine details
+   - Warm, muted color palette (earth tones, soft pastels, gentle colors)
+   - Hand-drawn quality with visible pencil or ink lines
+   - Rich textures: fabric weaves, wood grain, foliage details
+   - Classical composition with carefully balanced elements
+   - Vintage children's book aesthetic (1950s-1970s golden age)
+   - Detailed backgrounds with depth and atmosphere
+   - Think Maurice Sendak, E.H. Shepard, or Garth Williams
+   - AVOID: Bright neon colors, modern digital effects, minimalism`,
+
+      'modern-minimal': `   - MODERN MINIMALIST ILLUSTRATION - clean, simple, sophisticated
+   - SIMPLE GEOMETRIC SHAPES - circles, rectangles, triangles as building blocks
+   - LIMITED COLOR PALETTE - 3-5 carefully chosen colors maximum
+   - Flat colors with NO gradients or shading (pure flat design)
+   - Generous negative space (white space) around elements
+   - Clean lines and shapes with perfect edges
+   - Abstract, simplified representations rather than detailed realism
+   - Scandinavian design aesthetic - calm, uncluttered, purposeful
+   - Contemporary minimalist children's books (think Jon Klassen, Oliver Jeffers)
+   - AVOID: Busy details, many colors, realistic textures, decorative elements`,
+
+      'anime': `   - JAPANESE ANIME STYLE - expressive, dynamic, stylized
+   - LARGE EXPRESSIVE EYES with multiple highlights and detailed iris patterns
+   - Sleek, flowing hair with defined strands and highlights
+   - Cel-shaded coloring with clear separation between light and shadow areas
+   - Dynamic action poses with movement and energy
+   - Simplified nose and mouth, focus on eyes for expression
+   - Vibrant colors with high contrast
+   - Clean linework with varied line weight
+   - AVOID: Western cartoon style, realistic proportions, painterly effects`,
+
+      'comic-book': `   - AMERICAN COMIC BOOK STYLE - bold, dramatic, action-packed
+   - STRONG BLACK INK OUTLINES with varied line weight for depth
+   - Dynamic action poses and dramatic camera angles
+   - Bold primary colors with high contrast
+   - Strong shadows and highlights (chiaroscuro lighting)
+   - Halftone dots or screen tones for texture and shading
+   - Motion lines, speed lines, and action effects
+   - Superhero comic aesthetic - powerful and energetic
+   - AVOID: Soft watercolors, minimal style, subtle colors`,
+
+      'fantasy-realistic': `   - FANTASY REALISM - detailed, magical, richly rendered
+   - Realistic anatomical proportions and detailed textures
+   - Rich, saturated colors with dramatic lighting
+   - Painterly brushwork with visible strokes and blending
+   - Magical elements rendered realistically (glowing effects, sparkles)
+   - Intricate details in clothing, environment, and magical effects
+   - Cinematic lighting with strong light sources and atmosphere
+   - High fantasy art aesthetic (D&D, fantasy novels)
+   - AVOID: Cartoon simplification, flat colors, minimal details`,
+
+      'graphic-novel': `   - GRAPHIC NOVEL STYLE - sophisticated, cinematic, moody
+   - Dramatic black and white contrast with limited color palette
+   - Film noir inspired lighting and shadows
+   - Mature artistic sensibility with complex compositions
+   - Detailed linework with crosshatching and texture
+   - Cinematic panel layouts and perspectives
+   - Atmospheric mood through lighting and composition
+   - Contemporary graphic novel aesthetic (think Saga, Monstress)
+   - AVOID: Bright cheerful colors, simple cartoon style, flat design`,
+    };
+
+    return styleInstructions[illustrationStyle] || styleInstructions['watercolour'];
+  }
+
   private buildConversationalImagePrompt(storyPage: any, illustrationStyle: string, childFirstName: string, pageIndex: number): string {
     const isPhotographic = illustrationStyle === 'photographic';
 
@@ -1170,9 +1271,9 @@ export class ImageGenerationService {
       prompt += `   - Documentary/lifestyle photography aesthetic - authentic, not artistic or stylized\n`;
       prompt += `   - Think magazine photography, family portraits, editorial photography\n\n`;
     } else {
-      prompt += `3. ILLUSTRATION STYLE:\n`;
-      prompt += `   - Maintain the same illustration style as previous images\n`;
-      prompt += `   - Keep consistent artistic approach throughout\n\n`;
+      prompt += `3. ILLUSTRATION STYLE (CRITICAL - MAINTAIN EXACT STYLE):\n`;
+      prompt += this.getDetailedStyleInstructions(illustrationStyle);
+      prompt += `\n`;
     }
 
     prompt += `4. AVOID THESE ISSUES (NEGATIVE GUIDANCE):\n`;
