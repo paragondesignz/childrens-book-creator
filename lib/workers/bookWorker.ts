@@ -69,9 +69,9 @@ async function processBook(job: Job<BookJobData>) {
     console.log(`[${bookOrderId}] Story generated in ${Math.round((Date.now() - startStory) / 1000)}s`);
     await job.updateProgress(40);
 
-    // Step 2: Generate Images (covers + story pages)
+    // Step 2: Generate Images (covers + story pages in ONE conversation for consistency)
     const startImages = Date.now();
-    console.log(`[${bookOrderId}] Step 2/4: Generating images (2 covers + ${generatedStory.pages.length} pages)...`);
+    console.log(`[${bookOrderId}] Step 2/4: Generating images (front cover + ${generatedStory.pages.length} pages + back cover in conversation)...`);
     await supabase
       .from('book_orders')
       .update({ status: 'generating-images' })
@@ -79,37 +79,18 @@ async function processBook(job: Job<BookJobData>) {
 
     const imageService = new ImageGenerationService();
 
-    // Generate all images in parallel for better performance
-    const [frontCover, backCover, storyImages] = await Promise.all([
-      // Front cover (with AI text)
-      imageService.generateFrontCover({
-        bookOrderId,
-        storyTitle: generatedStory.title,
-        childFirstName: bookOrder.child_first_name,
-        illustrationStyle: bookOrder.illustration_style,
-      }),
+    // Generate ALL images (covers + pages) in ONE conversation for character/style consistency
+    const generatedImages = await imageService.generateImagesForStory({
+      storyId: generatedStory.id,
+      bookOrderId,
+      pages: generatedStory.pages,
+      illustrationStyle: bookOrder.illustration_style,
+      childFirstName: bookOrder.child_first_name,
+      storyTitle: generatedStory.title,
+      generateCovers: true, // Generate covers in same conversation for consistency
+    });
 
-      // Back cover (text will be added programmatically in PDF)
-      imageService.generateBackCover({
-        bookOrderId,
-        storyTitle: generatedStory.title,
-        childFirstName: bookOrder.child_first_name,
-        storySummary: generatedStory.summary || '',
-        illustrationStyle: bookOrder.illustration_style,
-      }),
-
-      // Story page images (15 pages)
-      imageService.generateImagesForStory({
-        storyId: generatedStory.id,
-        bookOrderId,
-        pages: generatedStory.pages,
-        illustrationStyle: bookOrder.illustration_style,
-        childFirstName: bookOrder.child_first_name,
-      }),
-    ]);
-
-    console.log(`[${bookOrderId}] All ${storyImages.length + 2} images generated in ${Math.round((Date.now() - startImages) / 1000)}s`);
-    const generatedImages = [frontCover, ...storyImages, backCover];
+    console.log(`[${bookOrderId}] ✓ All ${generatedImages.length} images generated (covers + pages) with conversation consistency in ${Math.round((Date.now() - startImages) / 1000)}s`);
 
     await job.updateProgress(70);
 
