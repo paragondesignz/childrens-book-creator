@@ -43,7 +43,7 @@ function addSecurityHeaders(response: NextResponse): void {
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: https:",
     "font-src 'self'",
-    "connect-src 'self' https://*.supabase.co https://api.replicate.com https://replicate.com",
+    "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.replicate.com https://replicate.com",
     "frame-ancestors 'none'",
   ].join('; ');
 
