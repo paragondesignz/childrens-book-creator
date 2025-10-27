@@ -187,8 +187,11 @@ class Logger {
    * Logs job/task execution
    */
   logJob(jobName: string, status: 'started' | 'completed' | 'failed', context?: LogContext): void {
-    const level = status === 'failed' ? 'error' : 'info';
-    this[level](`Job ${status}: ${jobName}`, context);
+    if (status === 'failed') {
+      this.error(`Job ${status}: ${jobName}`, undefined, context);
+    } else {
+      this.info(`Job ${status}: ${jobName}`, context);
+    }
   }
 }
 
