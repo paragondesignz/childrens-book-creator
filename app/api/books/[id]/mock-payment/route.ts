@@ -87,10 +87,26 @@ export async function POST(
     if (statusError) {
       console.error('[mock-payment] Failed to update book status:', statusError);
     } else {
-      console.log('[mock-payment] Book marked for processing - cron will handle it within 5 minutes');
+      console.log('[mock-payment] Book marked for processing - triggering immediate processing');
     }
 
-    // Return success with redirect URL
+    // Trigger immediate processing (fire-and-forget)
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_URL
+      ? `https://${process.env.VERCEL_URL}`
+      : 'http://localhost:3000';
+
+    console.log('[mock-payment] Triggering processing at:', `${appUrl}/api/cron/process-books`);
+
+    // Fire-and-forget: start processing immediately without waiting
+    fetch(`${appUrl}/api/cron/process-books`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ bookOrderId: book.id }),
+    }).catch(error => {
+      console.error('[mock-payment] Failed to trigger processing (will be picked up by cron):', error);
+    });
+
+    // Return success with redirect URL immediately
     return NextResponse.json({
       success: true,
       redirectUrl: `/books/${book.id}/status`,
