@@ -121,9 +121,7 @@ export class ImageGenerationService {
       const genAI = getGemini();
       const model = genAI.getGenerativeModel({
         model: 'gemini-2.5-flash-image',
-        generationConfig: {
-          responseModalities: ['Text', 'Image'], // Allow both text and image responses
-        },
+        // Note: responseModalities defaults to ['Text', 'Image'] for this model
       });
 
       // Prepare input parts
@@ -234,9 +232,7 @@ export class ImageGenerationService {
       const genAI = getGemini();
       const model = genAI.getGenerativeModel({
         model: 'gemini-2.5-flash-image',
-        generationConfig: {
-          responseModalities: ['Text', 'Image'], // Allow both text and image responses
-        },
+        // Note: responseModalities defaults to ['Text', 'Image'] for this model
       });
 
       // Prepare input parts
@@ -358,25 +354,21 @@ export class ImageGenerationService {
         model: 'gemini-2.5-flash-image',
         generationConfig: {
           temperature: 0.4, // Lower temperature for better consistency (0.0-1.0, default ~0.9)
-          responseModalities: ['Text', 'Image'], // CRITICAL: Allow both text and image responses
+          // Note: responseModalities defaults to ['Text', 'Image'] for this model
           // Lower = more consistent/deterministic, Higher = more creative/varied
         },
       });
 
-      // Initialize chat with character context
+      // Initialize chat for multi-turn image generation
       const chat = model.startChat({
         history: [],
       });
 
-      // Send initial context message with reference photo
-      if (referenceImageData) {
-        const characterContextPrompt = this.buildCharacterContextPrompt(childFirstName, illustrationStyle);
-        await chat.sendMessage([
-          referenceImageData,
-          { text: characterContextPrompt }
-        ]);
-        console.log('Character context established in conversation');
-      }
+      // NOTE: We don't send an initial character context message because:
+      // 1. Gemini 2.5 Flash Image requires every message to be an image generation request
+      // 2. We include the reference photo with EVERY image anyway for consistency
+      // 3. An initial "please confirm" message would cause a 400 error
+      console.log(`Starting conversation-based generation with reference photo included in each request`);
 
       const generatedImages = [];
 
@@ -482,9 +474,7 @@ export class ImageGenerationService {
       const genAI = getGemini();
       const model = genAI.getGenerativeModel({
         model: 'gemini-2.5-flash-image',
-        generationConfig: {
-          responseModalities: ['Text', 'Image'], // Allow both text and image responses
-        },
+        // Note: responseModalities defaults to ['Text', 'Image'] for this model
       });
 
       // Prepare input parts: reference image(s) + prompt
