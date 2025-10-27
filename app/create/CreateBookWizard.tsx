@@ -14,6 +14,7 @@ export interface BookFormData {
   childFirstName: string;
   childAge: number;
   childGender?: 'male' | 'female' | 'non-binary' | 'prefer-not-to-say';
+  hometown?: string;
   childPhoto?: File;
   childPhotoUrl?: string;
   pets: Array<{
@@ -25,6 +26,7 @@ export interface BookFormData {
     photoUrl?: string;
   }>;
   favouriteColours: string[];
+  favouriteFoods: string[];
   interests: string[];
   personalityTraits: string[];
   illustrationStyle: 'watercolour' | 'digital-art' | 'cartoon' | 'storybook-classic' | 'modern-minimal';
@@ -47,6 +49,7 @@ export function CreateBookWizard({ templates }: CreateBookWizardProps) {
     childAge: 5,
     pets: [],
     favouriteColours: [],
+    favouriteFoods: [],
     interests: [],
     personalityTraits: [],
     illustrationStyle: 'watercolour',

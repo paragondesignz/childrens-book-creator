@@ -77,7 +77,7 @@ export function StepThree({ formData, updateFormData, onNext, onPrev }: StepThre
               {/* Pet Name */}
               <div>
                 <label className="block text-sm font-medium mb-2">
-                  Pet's Name <span className="text-red-500">*</span>
+                  Pet's Name
                 </label>
                 <input
                   type="text"
@@ -91,7 +91,7 @@ export function StepThree({ formData, updateFormData, onNext, onPrev }: StepThre
               {/* Pet Type */}
               <div>
                 <label className="block text-sm font-medium mb-2">
-                  Pet Type <span className="text-red-500">*</span>
+                  Pet Type
                 </label>
                 <select
                   value={pet.type}
@@ -121,7 +121,7 @@ export function StepThree({ formData, updateFormData, onNext, onPrev }: StepThre
               {/* Colour */}
               <div>
                 <label className="block text-sm font-medium mb-2">
-                  Colour <span className="text-red-500">*</span>
+                  Colour
                 </label>
                 <input
                   type="text"
@@ -197,8 +197,7 @@ export function StepThree({ formData, updateFormData, onNext, onPrev }: StepThre
         </button>
         <button
           onClick={onNext}
-          disabled={formData.pets.some((pet) => !pet.name || !pet.colour)}
-          className="bg-primary text-white px-6 py-2 rounded-lg hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed"
+          className="bg-primary text-white px-6 py-2 rounded-lg hover:opacity-90 transition"
         >
           Next Step
         </button>

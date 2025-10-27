@@ -122,6 +122,22 @@ export function StepTwo({ formData, updateFormData, onNext, onPrev }: StepTwoPro
             <option value="non-binary">Non-binary</option>
           </select>
         </div>
+
+        {/* Hometown */}
+        <div>
+          <label htmlFor="hometown" className="block text-sm font-medium mb-2">
+            Hometown / City (Optional)
+          </label>
+          <input
+            id="hometown"
+            type="text"
+            value={formData.hometown || ''}
+            onChange={(e) => updateFormData({ hometown: e.target.value })}
+            className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
+            placeholder="e.g., London, New York, Sydney"
+          />
+          <p className="text-xs text-gray-500 mt-1">Helps personalize the story setting</p>
+        </div>
       </div>
 
       <div className="flex justify-between mt-8">

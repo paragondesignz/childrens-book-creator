@@ -31,6 +31,12 @@ const PERSONALITY_TRAITS = [
   'Adventurous', 'Caring', 'Energetic', 'Thoughtful', 'Confident', 'Gentle'
 ];
 
+const FAVOURITE_FOODS = [
+  'Pizza', 'Ice Cream', 'Pasta', 'Burgers', 'Chocolate', 'Cake',
+  'Fruit', 'Vegetables', 'Cookies', 'Chicken', 'Fish', 'Rice',
+  'Sandwiches', 'Pancakes', 'Tacos', 'Sushi'
+];
+
 const ILLUSTRATION_STYLES = [
   {
     value: 'watercolour',
@@ -103,23 +109,21 @@ export function StepFour({ formData, updateFormData, onNext, onPrev }: StepFourP
     }
   };
 
-  const canProceed =
-    formData.favouriteColours.length > 0 &&
-    formData.interests.length > 0 &&
-    formData.personalityTraits.length > 0;
+  // All fields are optional - user can proceed with any selections
+  const canProceed = true;
 
   return (
     <div>
       <h2 className="text-2xl font-bold mb-6">Customize Your Story</h2>
       <p className="text-gray-600 mb-6">
-        Help us personalize the story by selecting your child's preferences
+        Help us personalize the story by selecting your child's preferences (all optional)
       </p>
 
       <div className="space-y-8">
         {/* Illustration Style */}
         <div>
           <label className="block text-sm font-medium mb-3">
-            Illustration Style <span className="text-red-500">*</span>
+            Illustration Style
           </label>
           <div className="grid md:grid-cols-2 gap-3">
             {ILLUSTRATION_STYLES.map((style) => (
@@ -158,8 +162,7 @@ export function StepFour({ formData, updateFormData, onNext, onPrev }: StepFourP
         {/* Favourite Colours */}
         <div>
           <label className="block text-sm font-medium mb-3">
-            Favourite Colours <span className="text-red-500">*</span>
-            <span className="text-xs text-gray-500 ml-2">(Select at least 1)</span>
+            Favourite Colours (Optional)
           </label>
           <div className="grid grid-cols-4 md:grid-cols-8 gap-3">
             {COLORS.map((color) => (
@@ -193,8 +196,8 @@ export function StepFour({ formData, updateFormData, onNext, onPrev }: StepFourP
         {/* Interests */}
         <div>
           <label className="block text-sm font-medium mb-3">
-            Interests & Hobbies <span className="text-red-500">*</span>
-            <span className="text-xs text-gray-500 ml-2">(Select at least 1, max 5)</span>
+            Interests & Hobbies (Optional)
+            <span className="text-xs text-gray-500 ml-2">(Select up to 5)</span>
           </label>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
             {INTERESTS.map((interest) => (
@@ -223,8 +226,8 @@ export function StepFour({ formData, updateFormData, onNext, onPrev }: StepFourP
         {/* Personality Traits */}
         <div>
           <label className="block text-sm font-medium mb-3">
-            Personality Traits <span className="text-red-500">*</span>
-            <span className="text-xs text-gray-500 ml-2">(Select at least 1, max 4)</span>
+            Personality Traits (Optional)
+            <span className="text-xs text-gray-500 ml-2">(Select up to 4)</span>
           </label>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
             {PERSONALITY_TRAITS.map((trait) => (
@@ -246,6 +249,36 @@ export function StepFour({ formData, updateFormData, onNext, onPrev }: StepFourP
                 }`}
               >
                 {trait}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Favourite Foods */}
+        <div>
+          <label className="block text-sm font-medium mb-3">
+            Favourite Foods (Optional)
+            <span className="text-xs text-gray-500 ml-2">(Select up to 5)</span>
+          </label>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+            {FAVOURITE_FOODS.map((food) => (
+              <button
+                key={food}
+                onClick={() =>
+                  updateFormData({
+                    favouriteFoods: toggleArrayItem(formData.favouriteFoods, food),
+                  })
+                }
+                disabled={
+                  !formData.favouriteFoods.includes(food) && formData.favouriteFoods.length >= 5
+                }
+                className={`p-3 border rounded-lg text-sm font-medium transition ${
+                  formData.favouriteFoods.includes(food)
+                    ? 'border-primary bg-primary text-white'
+                    : 'border-gray-200 hover:border-primary/50 disabled:opacity-50 disabled:cursor-not-allowed'
+                }`}
+              >
+                {food}
               </button>
             ))}
           </div>

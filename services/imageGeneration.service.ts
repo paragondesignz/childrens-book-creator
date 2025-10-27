@@ -120,14 +120,8 @@ export class ImageGenerationService {
       const imageResponse = await axios.get(generatedImageUrl, { responseType: 'arraybuffer' });
       const imageBuffer = Buffer.from(imageResponse.data);
 
-      // Generate thumbnail
-      const thumbnail = await sharp(imageBuffer)
-        .resize(256, 256)
-        .toBuffer();
-
       // Upload to Supabase Storage
       const imagePath = `${bookOrderId}/cover-front.png`;
-      const thumbnailPath = `${bookOrderId}/cover-front-thumb.png`;
 
       const { error: uploadError } = await supabase.storage
         .from('generated-images')
@@ -140,25 +134,10 @@ export class ImageGenerationService {
         throw uploadError;
       }
 
-      const { error: thumbUploadError } = await supabase.storage
-        .from('generated-images')
-        .upload(thumbnailPath, thumbnail, {
-          contentType: 'image/png',
-          upsert: true,
-        });
-
-      if (thumbUploadError) {
-        throw thumbUploadError;
-      }
-
-      // Get public URLs
+      // Get public URL
       const { data: { publicUrl: imageUrl } } = supabase.storage
         .from('generated-images')
         .getPublicUrl(imagePath);
-
-      const { data: { publicUrl: thumbnailUrl } } = supabase.storage
-        .from('generated-images')
-        .getPublicUrl(thumbnailPath);
 
       // Save to database (page_number = 0 for front cover, story_page_id = null)
       const { data: generatedImage, error: dbError } = await supabase
@@ -168,7 +147,6 @@ export class ImageGenerationService {
           story_page_id: null,
           page_number: 0,
           image_url: imageUrl,
-          thumbnail_url: thumbnailUrl,
           generation_prompt: prompt,
           width: 2048,
           height: 2048,
@@ -239,14 +217,8 @@ export class ImageGenerationService {
       const imageResponse = await axios.get(generatedImageUrl, { responseType: 'arraybuffer' });
       const imageBuffer = Buffer.from(imageResponse.data);
 
-      // Generate thumbnail
-      const thumbnail = await sharp(imageBuffer)
-        .resize(256, 256)
-        .toBuffer();
-
       // Upload to Supabase Storage
       const imagePath = `${bookOrderId}/cover-back.png`;
-      const thumbnailPath = `${bookOrderId}/cover-back-thumb.png`;
 
       const { error: uploadError } = await supabase.storage
         .from('generated-images')
@@ -259,25 +231,10 @@ export class ImageGenerationService {
         throw uploadError;
       }
 
-      const { error: thumbUploadError } = await supabase.storage
-        .from('generated-images')
-        .upload(thumbnailPath, thumbnail, {
-          contentType: 'image/png',
-          upsert: true,
-        });
-
-      if (thumbUploadError) {
-        throw thumbUploadError;
-      }
-
-      // Get public URLs
+      // Get public URL
       const { data: { publicUrl: imageUrl } } = supabase.storage
         .from('generated-images')
         .getPublicUrl(imagePath);
-
-      const { data: { publicUrl: thumbnailUrl } } = supabase.storage
-        .from('generated-images')
-        .getPublicUrl(thumbnailPath);
 
       // Save to database (page_number = 16 for back cover, story_page_id = null)
       const { data: generatedImage, error: dbError } = await supabase
@@ -287,7 +244,6 @@ export class ImageGenerationService {
           story_page_id: null,
           page_number: 16,
           image_url: imageUrl,
-          thumbnail_url: thumbnailUrl,
           generation_prompt: prompt,
           width: 2048,
           height: 2048,
@@ -416,51 +372,27 @@ export class ImageGenerationService {
       const imageBuffer = Buffer.from(imageResponse.data);
       const downloadTime = Date.now() - downloadStart;
 
-      // Generate thumbnail
-      const thumbStart = Date.now();
-      const thumbnail = await sharp(imageBuffer)
-        .resize(256, 256)
-        .toBuffer();
-      const thumbTime = Date.now() - thumbStart;
-
-      // Upload to Supabase Storage (parallel uploads)
+      // Upload to Supabase Storage
       const uploadStart = Date.now();
       const imagePath = `${bookOrderId}/page-${storyPage.page_number}.png`;
-      const thumbnailPath = `${bookOrderId}/page-${storyPage.page_number}-thumb.png`;
 
-      const [imageUploadResult, thumbUploadResult] = await Promise.allSettled([
-        supabase.storage.from('generated-images').upload(imagePath, imageBuffer, {
+      const { error: uploadError } = await supabase.storage
+        .from('generated-images')
+        .upload(imagePath, imageBuffer, {
           contentType: 'image/png',
           upsert: true,
-        }),
-        supabase.storage.from('generated-images').upload(thumbnailPath, thumbnail, {
-          contentType: 'image/png',
-          upsert: true,
-        }),
-      ]);
+        });
 
-      if (imageUploadResult.status === 'rejected' || imageUploadResult.value.error) {
-        throw imageUploadResult.status === 'rejected'
-          ? imageUploadResult.reason
-          : imageUploadResult.value.error;
-      }
-
-      if (thumbUploadResult.status === 'rejected' || thumbUploadResult.value.error) {
-        throw thumbUploadResult.status === 'rejected'
-          ? thumbUploadResult.reason
-          : thumbUploadResult.value.error;
+      if (uploadError) {
+        throw uploadError;
       }
 
       const uploadTime = Date.now() - uploadStart;
 
-      // Get public URLs
+      // Get public URL
       const { data: { publicUrl: imageUrl } } = supabase.storage
         .from('generated-images')
         .getPublicUrl(imagePath);
-
-      const { data: { publicUrl: thumbnailUrl } } = supabase.storage
-        .from('generated-images')
-        .getPublicUrl(thumbnailPath);
 
       // Save to database
       const dbStart = Date.now();
@@ -471,7 +403,6 @@ export class ImageGenerationService {
           story_page_id: storyPage.id,
           page_number: storyPage.page_number,
           image_url: imageUrl,
-          thumbnail_url: thumbnailUrl,
           generation_prompt: prompt,
           width: 2048,
           height: 2048,
@@ -487,7 +418,7 @@ export class ImageGenerationService {
       const dbTime = Date.now() - dbStart;
 
       const totalTime = Date.now() - pageStartTime;
-      console.log(`[Page ${storyPage.page_number}] ✓ Complete in ${Math.round(totalTime / 1000)}s (AI: ${Math.round(genTime / 1000)}s, download: ${downloadTime}ms, thumb: ${thumbTime}ms, upload: ${uploadTime}ms, db: ${dbTime}ms)`);
+      console.log(`[Page ${storyPage.page_number}] ✓ Complete in ${Math.round(totalTime / 1000)}s (AI: ${Math.round(genTime / 1000)}s, download: ${downloadTime}ms, upload: ${uploadTime}ms, db: ${dbTime}ms)`);
 
       return generatedImage;
     } catch (error) {
