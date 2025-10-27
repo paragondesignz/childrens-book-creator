@@ -107,16 +107,8 @@ export default async function BookPreviewPage({ params }: { params: { id: string
 
           {/* PDF Preview */}
           <div className="bg-white rounded-lg shadow-lg border overflow-hidden">
-            <div className="bg-gray-100 border-b px-6 py-4 flex justify-between items-center">
+            <div className="bg-gray-100 border-b px-6 py-4">
               <h2 className="font-semibold text-lg">Book Preview</h2>
-              <a
-                href={pdfUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-primary hover:underline text-sm font-medium"
-              >
-                Open in New Tab →
-              </a>
             </div>
             <div className="relative" style={{ minHeight: '800px' }}>
               {pdfUrl ? (

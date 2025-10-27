@@ -353,9 +353,11 @@ export class ImageGenerationService {
       const model = genAI.getGenerativeModel({
         model: 'gemini-2.5-flash-image',
         generationConfig: {
-          temperature: 0.4, // Lower temperature for better consistency (0.0-1.0, default ~0.9)
+          temperature: 0.7, // Balanced: 0.7 gives variety in poses/angles while maintaining character consistency
           // Note: responseModalities defaults to ['Text', 'Image'] for this model
-          // Lower = more consistent/deterministic, Higher = more creative/varied
+          // 0.4 = very consistent but repetitive poses
+          // 0.7 = varied compositions while keeping character features
+          // 0.9+ = too much variation, character drift
         },
       });
 
@@ -1128,6 +1130,17 @@ export class ImageGenerationService {
   private buildConversationalImagePrompt(storyPage: any, illustrationStyle: string, childFirstName: string, pageIndex: number): string {
     const isPhotographic = illustrationStyle === 'photographic';
 
+    // Rotate through varied camera angles and compositions for visual variety
+    const cameraAngles = [
+      'medium shot at eye level',
+      'wide-angle shot showing the full scene',
+      'close-up shot focusing on emotion',
+      'low-angle perspective looking up',
+      'over-the-shoulder view',
+      'dynamic action shot with movement',
+    ];
+    const cameraAngle = cameraAngles[pageIndex % cameraAngles.length];
+
     let prompt = `Now ${isPhotographic ? 'photograph' : 'create'} the next ${isPhotographic ? 'scene' : 'image'} for the story.\n\n`;
     prompt += `PAGE ${storyPage.page_number} SCENE:\n${storyPage.image_prompt}\n\n`;
 
@@ -1137,8 +1150,15 @@ export class ImageGenerationService {
     prompt += `   - Keep the SAME facial features, hair color, hairstyle, eye color, and appearance\n`;
     prompt += `   - ${childFirstName} should be immediately recognizable as the same person\n\n`;
 
+    prompt += `2. COMPOSITION AND VARIETY:\n`;
+    prompt += `   - Use ${cameraAngle} for this scene\n`;
+    prompt += `   - Create a dynamic, engaging composition with ${childFirstName} in a natural, varied pose\n`;
+    prompt += `   - Avoid repetitive poses - make each image visually distinct\n`;
+    prompt += `   - ${childFirstName} can be standing, sitting, moving, reaching, looking in different directions\n`;
+    prompt += `   - Vary the framing and perspective to keep each image interesting\n\n`;
+
     if (isPhotographic) {
-      prompt += `2. PHOTOGRAPHY STYLE (CRITICAL - NOT ILLUSTRATION):\n`;
+      prompt += `3. PHOTOGRAPHY STYLE (CRITICAL - NOT ILLUSTRATION):\n`;
       prompt += `   - This MUST be a REAL PHOTOGRAPH taken with an actual camera\n`;
       prompt += `   - DO NOT create an illustration, drawing, painting, cartoon, or digital art\n`;
       prompt += `   - Use photorealistic rendering ONLY - like a Canon, Nikon, or Sony DSLR photograph\n`;
@@ -1148,12 +1168,12 @@ export class ImageGenerationService {
       prompt += `   - Documentary/lifestyle photography aesthetic - authentic, not artistic or stylized\n`;
       prompt += `   - Think magazine photography, family portraits, editorial photography\n\n`;
     } else {
-      prompt += `2. ILLUSTRATION STYLE:\n`;
+      prompt += `3. ILLUSTRATION STYLE:\n`;
       prompt += `   - Maintain the same illustration style as previous images\n`;
       prompt += `   - Keep consistent artistic approach throughout\n\n`;
     }
 
-    prompt += `${isPhotographic ? 'Take the photograph' : 'Create the illustration'} now. Remember: ${childFirstName} must match the reference photo exactly.`;
+    prompt += `${isPhotographic ? 'Take the photograph' : 'Create the illustration'} now. Remember: ${childFirstName} must match the reference photo exactly, but use a fresh, dynamic composition.`;
 
     return prompt;
   }

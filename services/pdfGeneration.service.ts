@@ -150,8 +150,7 @@ export class PDFGenerationService {
           doc.addPage();
           this.addTextPage(doc, page);
 
-          // Right page: Full-bleed image
-          doc.addPage();
+          // Right page: Full-bleed image (only add page if image exists)
           if (image?.image_url) {
             try {
               const response = await axios.get(image.image_url, { responseType: 'arraybuffer' });
@@ -160,6 +159,8 @@ export class PDFGenerationService {
               // Add square image as full-bleed (edge to edge)
               const SQUARE_SIZE = 576;
 
+              // Only add page if image loaded successfully
+              doc.addPage();
               doc.image(imageBuffer, 0, 0, {
                 width: SQUARE_SIZE,
                 height: SQUARE_SIZE,
@@ -168,7 +169,6 @@ export class PDFGenerationService {
               });
             } catch (imgError) {
               console.error(`Failed to load image for page ${page.page_number}:`, imgError);
-              // Don't add placeholder - just skip the image page
               console.warn(`Skipping image page ${page.page_number} due to load error`);
             }
           } else {

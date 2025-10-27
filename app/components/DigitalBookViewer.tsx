@@ -123,7 +123,7 @@ export function DigitalBookViewer({ title, childName, pages }: DigitalBookViewer
         <div className="relative w-full h-full max-w-4xl max-h-[90vh] flex items-center justify-center">
           {page.type === 'cover' || page.imageUrl ? (
             // Image page (full-bleed)
-            <div className="relative w-full h-full flex items-center justify-center bg-black">
+            <div className="relative w-full aspect-square max-h-[90vh] flex items-center justify-center bg-black">
               {page.imageUrl && (
                 <Image
                   src={page.imageUrl}
@@ -131,6 +131,8 @@ export function DigitalBookViewer({ title, childName, pages }: DigitalBookViewer
                   fill
                   className="object-contain"
                   priority={currentPage === 0}
+                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 80vw, 1200px"
+                  unoptimized
                 />
               )}
             </div>
