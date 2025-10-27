@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import Link from 'next/link';
+import { DeleteBookButton } from '@/app/components/DeleteBookButton';
 
 export default async function DashboardPage() {
   const supabase = createClient();
@@ -81,8 +82,16 @@ export default async function DashboardPage() {
               const canProcess = paidPayment && book.status === 'draft';
 
               return (
-                <div key={book.id} className="bg-white rounded-lg shadow-sm border p-6">
-                  <div className="mb-4">
+                <div key={book.id} className="bg-white rounded-lg shadow-sm border p-6 relative">
+                  {/* Delete button in top-right corner */}
+                  <div className="absolute top-4 right-4">
+                    <DeleteBookButton
+                      bookId={book.id}
+                      bookTitle={`${book.child_first_name}'s Story`}
+                    />
+                  </div>
+
+                  <div className="mb-4 pr-8">
                     <div className="flex items-center justify-between mb-2">
                       <span className={`px-2 py-1 text-xs rounded-full ${
                         book.status === 'completed' ? 'bg-green-100 text-green-800' :

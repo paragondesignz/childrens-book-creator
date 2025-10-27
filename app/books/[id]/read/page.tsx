@@ -17,22 +17,31 @@ export default async function DigitalReadPage({ params }: { params: { id: string
     .select(`
       *,
       template:story_templates(*),
-      generated_story:generated_stories(
-        *,
-        pages:story_pages(*)
-      )
+      generated_story:generated_stories(*)
     `)
     .eq('id', params.id)
     .eq('user_id', user.id)
     .single();
 
   if (error || !book) {
+    console.error('Error fetching book:', error);
     redirect('/dashboard');
   }
 
   // If not completed, redirect to status page
   if (book.status !== 'completed' || !book.generated_story) {
     redirect(`/books/${book.id}/status`);
+  }
+
+  // Fetch story pages separately (more reliable than nested query)
+  const { data: storyPages, error: pagesError } = await supabase
+    .from('story_pages')
+    .select('*')
+    .eq('story_id', book.generated_story.id)
+    .order('page_number', { ascending: true });
+
+  if (pagesError) {
+    console.error('Error fetching story pages:', pagesError);
   }
 
   // Fetch generated images (covers + story pages)
@@ -58,10 +67,10 @@ export default async function DigitalReadPage({ params }: { params: { id: string
   }
 
   // Story pages - alternating text and image
-  const storyPages = book.generated_story.pages || [];
-  storyPages.sort((a: any, b: any) => a.page_number - b.page_number);
+  const sortedStoryPages = storyPages || [];
+  sortedStoryPages.sort((a: any, b: any) => a.page_number - b.page_number);
 
-  for (const storyPage of storyPages) {
+  for (const storyPage of sortedStoryPages) {
     // Text page
     pages.push({
       pageNumber: storyPage.page_number,
