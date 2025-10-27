@@ -114,7 +114,8 @@ export class PDFGenerationService {
 
       const doc = new PDFDocument({
         size: [SQUARE_SIZE, SQUARE_SIZE],
-        margins: { top: 50, bottom: 50, left: 50, right: 50 },
+        margins: { top: 0, bottom: 0, left: 0, right: 0 }, // No margins - we handle positioning manually
+        autoFirstPage: false, // We'll add pages manually
         info: {
           Title: data.title,
           Author: 'Personalized Children\'s Storybooks',
@@ -132,9 +133,10 @@ export class PDFGenerationService {
 
       try {
         // Front Cover (page_number = 0)
+        doc.addPage(); // Manually add first page
         const frontCover = data.images.find((img: any) => img.page_number === 0);
         if (frontCover?.image_url) {
-          await this.addImagePage(doc, frontCover.image_url, 'front cover');
+          await this.addFrontCoverImage(doc, frontCover.image_url);
         } else {
           // Fallback to text-only cover
           this.addCoverPage(doc, data.title);
@@ -142,17 +144,20 @@ export class PDFGenerationService {
 
         // Story pages - alternate text and image pages
         // For each story page: Left page = text (Baskerville), Right page = full-bleed image
+        console.log(`Generating ${data.pages.length} story pages...`);
         for (let i = 0; i < data.pages.length; i++) {
           const page = data.pages[i];
           const image = data.images.find((img: any) => img.page_number === page.page_number);
 
           // Left page: Text only (white background, Baskerville font)
+          console.log(`Adding text page ${page.page_number}...`);
           doc.addPage();
           this.addTextPage(doc, page);
 
           // Right page: Full-bleed image (only add page if image exists)
           if (image?.image_url) {
             try {
+              console.log(`Loading image for page ${page.page_number}...`);
               const response = await axios.get(image.image_url, { responseType: 'arraybuffer' });
               const imageBuffer = Buffer.from(response.data);
 
@@ -160,6 +165,7 @@ export class PDFGenerationService {
               const SQUARE_SIZE = 576;
 
               // Only add page if image loaded successfully
+              console.log(`Adding image page ${page.page_number}...`);
               doc.addPage();
               doc.image(imageBuffer, 0, 0, {
                 width: SQUARE_SIZE,
@@ -167,6 +173,7 @@ export class PDFGenerationService {
                 align: 'center',
                 valign: 'center',
               });
+              console.log(`✓ Added image page ${page.page_number}`);
             } catch (imgError) {
               console.error(`Failed to load image for page ${page.page_number}:`, imgError);
               console.warn(`Skipping image page ${page.page_number} due to load error`);
@@ -194,7 +201,7 @@ export class PDFGenerationService {
     });
   }
 
-  private async addImagePage(doc: PDFKit.PDFDocument, imageUrl: string, pageType: string): Promise<void> {
+  private async addFrontCoverImage(doc: PDFKit.PDFDocument, imageUrl: string): Promise<void> {
     try {
       const response = await axios.get(imageUrl, { responseType: 'arraybuffer' });
       const imageBuffer = Buffer.from(response.data);
@@ -209,9 +216,9 @@ export class PDFGenerationService {
         valign: 'center',
       });
 
-      console.log(`Added ${pageType} image to PDF`);
+      console.log(`Added front cover image to PDF`);
     } catch (error) {
-      console.error(`Failed to load ${pageType} image:`, error);
+      console.error(`Failed to load front cover image:`, error);
       throw error;
     }
   }
@@ -314,10 +321,11 @@ export class PDFGenerationService {
     doc.fontSize(16)
       .font(fontFamily)
       .fillColor('#000000')
-      .text(page.page_text, margin, SQUARE_SIZE / 2 - 100, {
+      .text(page.page_text || '', margin, SQUARE_SIZE / 2 - 100, {
         align: 'center',
         width: textWidth,
         lineGap: 8,
+        continued: false, // Explicitly don't continue to next page
       });
 
     // Small page number at bottom center
@@ -326,7 +334,10 @@ export class PDFGenerationService {
       .text(`${page.page_number}`, margin, SQUARE_SIZE - 40, {
         align: 'center',
         width: textWidth,
+        continued: false, // Explicitly don't continue to next page
       });
+
+    console.log(`Added text page ${page.page_number} to PDF`);
   }
 
   private addImagePlaceholder(doc: PDFKit.PDFDocument, pageNumber: number): void {
