@@ -113,13 +113,13 @@ export class ImageGenerationService {
 
       const prompt = this.buildFrontCoverPrompt(storyTitle, childFirstName, illustrationStyle);
 
-      console.log('Generating front cover with Gemini 2.0 Flash...');
+      console.log('Generating front cover with Gemini 2.5 Flash Image...');
       console.log(`Reference photo: ${referenceImageUrl ? 'Yes' : 'No'}`);
       console.log(`Prompt: ${prompt.substring(0, 200)}...`);
 
       // Generate cover with Gemini
       const genAI = getGemini();
-      const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
+      const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-image' });
 
       // Prepare input parts
       const parts: any[] = [];
@@ -221,13 +221,13 @@ export class ImageGenerationService {
 
       const prompt = this.buildBackCoverPrompt(storyTitle, childFirstName, storySummary, illustrationStyle);
 
-      console.log('Generating back cover with Gemini 2.0 Flash...');
+      console.log('Generating back cover with Gemini 2.5 Flash Image...');
       console.log(`Reference photo: ${referenceImageUrl ? 'Yes' : 'No'}`);
       console.log(`Prompt: ${prompt.substring(0, 200)}...`);
 
       // Generate cover with Gemini
       const genAI = getGemini();
-      const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
+      const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-image' });
 
       // Prepare input parts
       const parts: any[] = [];
@@ -388,7 +388,7 @@ export class ImageGenerationService {
       // Generate image with Gemini 2.5 Flash Image
       const genStart = Date.now();
       const genAI = getGemini();
-      const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
+      const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-image' });
 
       // Prepare input parts: reference image(s) + prompt
       const parts: any[] = [];
@@ -519,12 +519,12 @@ export class ImageGenerationService {
     prompt += `- Maintain consistent age appearance and proportions\n\n`;
     prompt += `SCENE: ${storyPage.image_prompt}\n\n`;
     prompt += `REQUIREMENTS:\n`;
-    prompt += `- Full-page illustration with no text, words, or letters\n`;
-    prompt += `- Bright, inviting, child-friendly colors\n`;
-    prompt += `- Safe, age-appropriate content\n`;
-    prompt += `- Professional storybook quality\n`;
-    prompt += `- Clear focus on the main character ${childFirstName}\n`;
-    prompt += `- Engaging composition that captures attention`;
+    prompt += `- Full-page pure illustration focusing entirely on the visual scene\n`;
+    prompt += `- Bright, inviting, child-friendly colors that spark joy\n`;
+    prompt += `- Safe, warm, age-appropriate content perfect for young readers\n`;
+    prompt += `- Professional storybook quality with rich details and textures\n`;
+    prompt += `- ${childFirstName} as the clear focal point of the composition\n`;
+    prompt += `- Engaging, dynamic composition that captures attention and imagination`;
 
     return prompt;
   }
@@ -545,14 +545,14 @@ export class ImageGenerationService {
 
     const styleGuide = styleGuides[illustrationStyle] || styleGuides['watercolour'];
 
-    let prompt = `Create a stunning children's book front cover.\n\n`;
-    prompt += `STYLE: ${styleGuide}\n\n`;
-    prompt += `CHARACTER: ${childFirstName} from the reference image - use EXACT same appearance\n\n`;
-    prompt += `COMPOSITION: Feature ${childFirstName} in an enchanting, magical scene that captures imagination\n\n`;
-    prompt += `TEXT ELEMENTS:\n`;
-    prompt += `- Top: "${storyTitle}" in large, bold, playful letters\n`;
-    prompt += `- Bottom: "Starring ${childFirstName}" in elegant script\n\n`;
-    prompt += `QUALITY: Professional, award-winning book cover design with vibrant, inviting colors`;
+    let prompt = `Create a stunning children's book front cover illustration.\n\n`;
+    prompt += `TEXT TO RENDER:\n`;
+    prompt += `- At the top of the cover, render the title text "${storyTitle}" in large, bold, playful serif font suitable for children's books\n`;
+    prompt += `- At the bottom of the cover, render the subtitle "Starring ${childFirstName}" in an elegant, flowing script font\n`;
+    prompt += `- Ensure all text is perfectly legible, well-spaced, and professionally typeset\n\n`;
+    prompt += `VISUAL STYLE: ${styleGuide} with vibrant, inviting colors and professional book cover aesthetic\n\n`;
+    prompt += `MAIN CHARACTER: ${childFirstName} from the reference image provided - maintain EXACT same facial features, hair, and appearance\n\n`;
+    prompt += `SCENE COMPOSITION: Feature ${childFirstName} as the hero in an enchanting, magical scene that sparks imagination. The character should be prominently displayed in the center-lower portion of the cover, with the scene creating a sense of wonder and adventure. Rich details, dynamic lighting, and a composition that draws the eye to both the character and the title text.`;
 
     return prompt;
   }
@@ -574,14 +574,9 @@ export class ImageGenerationService {
     const styleGuide = styleGuides[illustrationStyle] || styleGuides['watercolour'];
 
     let prompt = `Create a beautiful children's book back cover illustration.\n\n`;
-    prompt += `STYLE: ${styleGuide}\n\n`;
-    prompt += `CHARACTER: ${childFirstName} from the reference image - use EXACT same appearance\n\n`;
-    prompt += `COMPOSITION: Decorative, whimsical scene in a magical, enchanting setting\n\n`;
-    prompt += `REQUIREMENTS:\n`;
-    prompt += `- No text or words\n`;
-    prompt += `- Professional book cover quality\n`;
-    prompt += `- Warm, inviting colors\n`;
-    prompt += `- Safe, age-appropriate design`;
+    prompt += `VISUAL STYLE: ${styleGuide} with warm, inviting colors and professional book cover aesthetic\n\n`;
+    prompt += `MAIN CHARACTER: ${childFirstName} from the reference image provided - maintain EXACT same facial features, hair, and appearance\n\n`;
+    prompt += `SCENE COMPOSITION: A decorative, whimsical scene in a magical, enchanting setting that complements the story's theme. Pure visual illustration showcasing ${childFirstName} in a memorable, heartwarming moment. The scene should feel safe, joyful, and age-appropriate, with rich artistic details and a composition that creates emotional connection and wonder.`;
 
     return prompt;
   }
