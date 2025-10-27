@@ -119,7 +119,12 @@ export class ImageGenerationService {
 
       // Generate cover with Gemini
       const genAI = getGemini();
-      const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-image' });
+      const model = genAI.getGenerativeModel({
+        model: 'gemini-2.5-flash-image',
+        generationConfig: {
+          responseModalities: ['Text', 'Image'], // Allow both text and image responses
+        },
+      });
 
       // Prepare input parts
       const parts: any[] = [];
@@ -227,7 +232,12 @@ export class ImageGenerationService {
 
       // Generate cover with Gemini
       const genAI = getGemini();
-      const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-image' });
+      const model = genAI.getGenerativeModel({
+        model: 'gemini-2.5-flash-image',
+        generationConfig: {
+          responseModalities: ['Text', 'Image'], // Allow both text and image responses
+        },
+      });
 
       // Prepare input parts
       const parts: any[] = [];
@@ -348,6 +358,7 @@ export class ImageGenerationService {
         model: 'gemini-2.5-flash-image',
         generationConfig: {
           temperature: 0.4, // Lower temperature for better consistency (0.0-1.0, default ~0.9)
+          responseModalities: ['Text', 'Image'], // CRITICAL: Allow both text and image responses
           // Lower = more consistent/deterministic, Higher = more creative/varied
         },
       });
@@ -469,7 +480,12 @@ export class ImageGenerationService {
       // Generate image with Gemini 2.5 Flash Image
       const genStart = Date.now();
       const genAI = getGemini();
-      const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-image' });
+      const model = genAI.getGenerativeModel({
+        model: 'gemini-2.5-flash-image',
+        generationConfig: {
+          responseModalities: ['Text', 'Image'], // Allow both text and image responses
+        },
+      });
 
       // Prepare input parts: reference image(s) + prompt
       const parts: any[] = [];
