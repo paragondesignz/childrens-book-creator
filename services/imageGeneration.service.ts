@@ -1145,10 +1145,12 @@ export class ImageGenerationService {
     prompt += `PAGE ${storyPage.page_number} SCENE:\n${storyPage.image_prompt}\n\n`;
 
     prompt += `CRITICAL REQUIREMENTS:\n`;
-    prompt += `1. CHARACTER CONSISTENCY:\n`;
-    prompt += `   - ${childFirstName} must look EXACTLY the same as in the reference photo I just provided\n`;
-    prompt += `   - Keep the SAME facial features, hair color, hairstyle, eye color, and appearance\n`;
-    prompt += `   - ${childFirstName} should be immediately recognizable as the same person\n\n`;
+    prompt += `1. CHARACTER CONSISTENCY AND IDENTITY:\n`;
+    prompt += `   - ${childFirstName} must look EXACTLY the same as in the reference photo I provided\n`;
+    prompt += `   - Retain facial identity, eye color, hairstyle, hair color, and all appearance details from reference\n`;
+    prompt += `   - ${childFirstName} should be immediately recognizable as the same person\n`;
+    prompt += `   - IMPORTANT: Show ${childFirstName} ONCE and only once in the scene (no duplicates, no multiple instances)\n`;
+    prompt += `   - If other people appear, they must look completely different from ${childFirstName}\n\n`;
 
     prompt += `2. COMPOSITION AND VARIETY:\n`;
     prompt += `   - Use ${cameraAngle} for this scene\n`;
@@ -1173,7 +1175,13 @@ export class ImageGenerationService {
       prompt += `   - Keep consistent artistic approach throughout\n\n`;
     }
 
-    prompt += `${isPhotographic ? 'Take the photograph' : 'Create the illustration'} now. Remember: ${childFirstName} must match the reference photo exactly, but use a fresh, dynamic composition.`;
+    prompt += `4. AVOID THESE ISSUES (NEGATIVE GUIDANCE):\n`;
+    prompt += `   - NO duplicated faces or multiple instances of ${childFirstName}\n`;
+    prompt += `   - NO extra fingers or distorted hands\n`;
+    prompt += `   - NO heavy blur or artifacts\n`;
+    prompt += `   - NO double pupils or facial distortions\n\n`;
+
+    prompt += `${isPhotographic ? 'Take the photograph' : 'Create the illustration'} now. Remember: ${childFirstName} must match the reference photo exactly, appear ONCE only, with a fresh dynamic composition.`;
 
     return prompt;
   }
