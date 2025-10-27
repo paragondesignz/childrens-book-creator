@@ -3,7 +3,12 @@ export type IllustrationStyle =
   | 'digital-art'
   | 'cartoon'
   | 'storybook-classic'
-  | 'modern-minimal';
+  | 'modern-minimal'
+  | 'photographic'
+  | 'anime'
+  | 'comic-book'
+  | 'fantasy-realistic'
+  | 'graphic-novel';
 
 export type BookStatus =
   | 'draft'

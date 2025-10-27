@@ -97,11 +97,12 @@ export function StepTwo({ formData, updateFormData, onNext, onPrev }: StepTwoPro
             id="childAge"
             type="number"
             min="1"
-            max="12"
+            max="14"
             value={formData.childAge}
             onChange={(e) => updateFormData({ childAge: parseInt(e.target.value) })}
             className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
           />
+          <p className="text-xs text-gray-500 mt-1">Ages 1-14 years</p>
         </div>
 
         {/* Child's Gender */}

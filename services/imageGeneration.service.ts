@@ -465,6 +465,11 @@ export class ImageGenerationService {
       'cartoon': 'playful cartoon style with bold outlines and bright colors',
       'storybook-classic': 'classic children storybook illustration, warm and timeless',
       'modern-minimal': 'clean modern illustration with simple shapes',
+      'photographic': 'photorealistic style with natural lighting and detailed textures',
+      'anime': 'Japanese anime style with expressive features and dynamic composition',
+      'comic-book': 'bold comic book style with dynamic action and vibrant colors',
+      'fantasy-realistic': 'detailed fantasy illustration with realistic rendering',
+      'graphic-novel': 'sophisticated graphic novel style with dramatic lighting and mature composition',
     };
 
     const styleGuide = styleGuides[illustrationStyle] || styleGuides['watercolour'];
@@ -488,6 +493,11 @@ export class ImageGenerationService {
       'cartoon': 'playful cartoon style with bold outlines and bright colors',
       'storybook-classic': 'classic children storybook illustration, warm and timeless',
       'modern-minimal': 'clean modern illustration with simple shapes',
+      'photographic': 'photorealistic style with natural lighting and detailed textures',
+      'anime': 'Japanese anime style with expressive features and dynamic composition',
+      'comic-book': 'bold comic book style with dynamic action and vibrant colors',
+      'fantasy-realistic': 'detailed fantasy illustration with realistic rendering',
+      'graphic-novel': 'sophisticated graphic novel style with dramatic lighting and mature composition',
     };
 
     const styleGuide = styleGuides[illustrationStyle] || styleGuides['watercolour'];
@@ -511,6 +521,11 @@ export class ImageGenerationService {
       'cartoon': 'playful cartoon style with bold outlines and bright colors',
       'storybook-classic': 'classic children storybook illustration, warm and timeless',
       'modern-minimal': 'clean modern illustration with simple shapes',
+      'photographic': 'photorealistic style with natural lighting and detailed textures',
+      'anime': 'Japanese anime style with expressive features and dynamic composition',
+      'comic-book': 'bold comic book style with dynamic action and vibrant colors',
+      'fantasy-realistic': 'detailed fantasy illustration with realistic rendering',
+      'graphic-novel': 'sophisticated graphic novel style with dramatic lighting and mature composition',
     };
 
     const styleGuide = styleGuides[illustrationStyle] || styleGuides['watercolour'];

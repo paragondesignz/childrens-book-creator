@@ -36,26 +36,61 @@ const ILLUSTRATION_STYLES = [
     value: 'watercolour',
     label: 'Watercolour',
     description: 'Soft, dreamy illustrations with gentle colors',
+    ageRange: '3-10',
   },
   {
     value: 'digital-art',
     label: 'Digital Art',
     description: 'Modern, vibrant digital illustrations',
+    ageRange: '4-12',
   },
   {
     value: 'cartoon',
     label: 'Cartoon',
     description: 'Fun, playful cartoon-style drawings',
+    ageRange: '3-10',
   },
   {
     value: 'storybook-classic',
     label: 'Classic Storybook',
     description: 'Traditional storybook illustration style',
+    ageRange: '3-10',
   },
   {
     value: 'modern-minimal',
     label: 'Modern Minimal',
     description: 'Clean, simple, contemporary illustrations',
+    ageRange: '5-14',
+  },
+  {
+    value: 'photographic',
+    label: 'Photographic',
+    description: 'Realistic, photo-like illustrations',
+    ageRange: '8-14',
+  },
+  {
+    value: 'anime',
+    label: 'Anime',
+    description: 'Japanese anime-inspired character art',
+    ageRange: '8-14',
+  },
+  {
+    value: 'comic-book',
+    label: 'Comic Book',
+    description: 'Dynamic comic book style with bold colors',
+    ageRange: '7-14',
+  },
+  {
+    value: 'fantasy-realistic',
+    label: 'Fantasy Realistic',
+    description: 'Detailed fantasy art with realistic elements',
+    ageRange: '9-14',
+  },
+  {
+    value: 'graphic-novel',
+    label: 'Graphic Novel',
+    description: 'Mature, sophisticated graphic novel style',
+    ageRange: '10-14',
   },
 ];
 
@@ -98,8 +133,13 @@ export function StepFour({ formData, updateFormData, onNext, onPrev }: StepFourP
                 }`}
               >
                 <div className="flex items-start justify-between">
-                  <div>
-                    <h4 className="font-semibold mb-1">{style.label}</h4>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <h4 className="font-semibold">{style.label}</h4>
+                      <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
+                        Ages {style.ageRange}
+                      </span>
+                    </div>
                     <p className="text-sm text-gray-600">{style.description}</p>
                   </div>
                   {formData.illustrationStyle === style.value && (

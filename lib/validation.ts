@@ -147,7 +147,7 @@ export function validateURL(url: string, fieldName: string = 'URL'): string {
  * Validates child's age (for children's book context)
  */
 export function validateChildAge(age: any): number {
-  const ageNum = validateNumber(age, 'Child age', 2, 12);
+  const ageNum = validateNumber(age, 'Child age', 1, 14);
   return ageNum;
 }
 
@@ -188,6 +188,11 @@ export const ILLUSTRATION_STYLES = [
   'cartoon',
   'storybook-classic',
   'modern-minimal',
+  'photographic',
+  'anime',
+  'comic-book',
+  'fantasy-realistic',
+  'graphic-novel',
 ] as const;
 
 export type IllustrationStyle = typeof ILLUSTRATION_STYLES[number];
