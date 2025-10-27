@@ -103,7 +103,7 @@ export default async function CheckoutPage({ params }: { params: { id: string } 
                     <ul className="space-y-2 text-sm text-gray-600">
                       <li className="flex items-start">
                         <span className="mr-2">✓</span>
-                        <span>15-page personalized illustrated story</span>
+                        <span>8-page personalized illustrated story</span>
                       </li>
                       <li className="flex items-start">
                         <span className="mr-2">✓</span>

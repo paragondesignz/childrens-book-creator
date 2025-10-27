@@ -55,7 +55,7 @@ export async function processBookOrder(bookOrderId: string) {
       .eq('book_order_id', bookOrderId)
       .single();
 
-    console.log(`[process-books] Already done - Story: ${!!existingStory}, Images: ${imageCount}/15, PDF: ${!!existingPdf}`);
+    console.log(`[process-books] Already done - Story: ${!!existingStory}, Images: ${imageCount}/8, PDF: ${!!existingPdf}`);
 
     // Step 1: Generate Story (if not already done)
     let generatedStory: { id: string; title: string; pages: any[] } | null = null;
@@ -117,7 +117,7 @@ export async function processBookOrder(bookOrderId: string) {
     // Check if we need to generate any images
     const needsFrontCover = !existingFrontCover;
     const needsBackCover = !existingBackCover;
-    const needsPageImages = !imageCount || imageCount < 10;
+    const needsPageImages = !imageCount || imageCount < 6;
 
     if (needsFrontCover || needsBackCover || needsPageImages) {
       console.log(`[process-books] Generating images in conversation: Front=${needsFrontCover}, Pages=${needsPageImages}, Back=${needsBackCover}`);

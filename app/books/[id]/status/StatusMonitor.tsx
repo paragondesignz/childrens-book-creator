@@ -228,9 +228,9 @@ export function StatusMonitor({ bookId, initialStatus }: StatusMonitorProps) {
         <div className="mt-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-gray-900">
-              Illustrations ({generatedImages.length} of 15)
+              Illustrations ({generatedImages.length} of 8)
             </h3>
-            {generatedImages.length < 15 && (
+            {generatedImages.length < 8 && (
               <div className="flex items-center gap-2 text-sm text-gray-600">
                 <div className="w-2 h-2 bg-primary rounded-full animate-pulse" />
                 <span>Generating...</span>
@@ -259,7 +259,7 @@ export function StatusMonitor({ bookId, initialStatus }: StatusMonitorProps) {
               </div>
             ))}
             {/* Placeholder for remaining images */}
-            {Array.from({ length: 15 - generatedImages.length }).map((_, i) => (
+            {Array.from({ length: 8 - generatedImages.length }).map((_, i) => (
               <div
                 key={`placeholder-${i}`}
                 className="relative aspect-square rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 flex items-center justify-center"

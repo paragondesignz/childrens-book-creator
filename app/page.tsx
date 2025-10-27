@@ -82,7 +82,7 @@ export default async function HomePage() {
             <div className="text-4xl mb-4">✨</div>
             <h3 className="text-xl font-semibold mb-2">AI Creates Magic</h3>
             <p className="text-muted-foreground">
-              Our AI generates a unique 15-page illustrated story featuring your child
+              Our AI generates a unique 8-page illustrated story featuring your child
             </p>
           </div>
           <div className="text-center">

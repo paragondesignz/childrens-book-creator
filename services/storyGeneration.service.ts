@@ -94,8 +94,8 @@ export class StoryGenerationService {
           const parsedData = JSON.parse(text) as GeneratedStoryData;
 
           // Validate story data
-          if (!parsedData || !parsedData.title || !parsedData.pages || parsedData.pages.length !== 10) {
-            throw new Error(`Invalid story data: expected 10 pages, got ${parsedData?.pages?.length || 0}`);
+          if (!parsedData || !parsedData.title || !parsedData.pages || parsedData.pages.length !== 6) {
+            throw new Error(`Invalid story data: expected 6 pages, got ${parsedData?.pages?.length || 0}`);
           }
 
           // If validation passes, assign to storyData
@@ -173,7 +173,7 @@ export class StoryGenerationService {
   private buildPrompt(params: GenerateStoryParams, template: any): string {
     const { childFirstName, childAge, childGender, favouriteColours, interests, personalityTraits, customPrompt, pets } = params;
 
-    let prompt = `Write a 10-page children's story for ${childFirstName}, a ${childAge}-year-old child.\n\n`;
+    let prompt = `Write a 6-page children's story for ${childFirstName}, a ${childAge}-year-old child.\n\n`;
 
     if (template) {
       prompt += `Story Template: ${template.title}\n`;
@@ -201,7 +201,7 @@ export class StoryGenerationService {
     prompt += `- Age-appropriate language for ${childAge}-year-olds\n`;
     prompt += `- Positive, encouraging themes\n`;
     prompt += `- ${childFirstName} should be the protagonist and hero of the story\n`;
-    prompt += `- Story must be exactly 10 pages\n`;
+    prompt += `- Story must be exactly 6 pages\n`;
     prompt += `- Each page should have 50-100 words\n`;
     prompt += `- Include engaging dialogue\n`;
     prompt += `- Educational elements appropriate for the age\n`;

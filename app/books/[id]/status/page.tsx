@@ -75,7 +75,7 @@ export default async function BookStatusPage({ params }: { params: { id: string 
                 </div>
                 <div>
                   <p className="font-medium text-gray-900">Story Generation</p>
-                  <p>Our AI is creating a unique 15-page story featuring {book.child_first_name}, incorporating their interests and personality traits.</p>
+                  <p>Our AI is creating a unique 8-page story featuring {book.child_first_name}, incorporating their interests and personality traits.</p>
                 </div>
               </div>
               <div className="flex items-start gap-3">
