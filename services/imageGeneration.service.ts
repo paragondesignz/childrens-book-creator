@@ -1020,7 +1020,7 @@ export class ImageGenerationService {
           hasContent: !!candidate.content,
           hasParts: !!candidate.content?.parts,
           partsCount: candidate.content?.parts?.length || 0,
-          parts: candidate.content?.parts?.map(p => ({
+          parts: candidate.content?.parts?.map((p: any) => ({
             hasInlineData: !!p.inlineData,
             hasText: !!p.text,
             hasFileData: !!p.fileData,
