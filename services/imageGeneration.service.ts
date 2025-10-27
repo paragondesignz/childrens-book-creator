@@ -52,8 +52,9 @@ interface GenerateImagesParams {
 }
 
 export class ImageGenerationService {
-  // Cache reference photo per book order to avoid redundant DB queries
+  // Cache reference photos per book order to avoid redundant DB queries
   private referencePhotoCache: Map<string, string | null> = new Map();
+  private petPhotoCache: Map<string, string | null> = new Map();
 
   /**
    * Fetches the child's reference photo URL from Supabase
@@ -93,6 +94,48 @@ export class ImageGenerationService {
     } catch (error) {
       console.error('Error fetching reference photo:', error);
       this.referencePhotoCache.set(bookOrderId, null);
+      return null;
+    }
+  }
+
+  /**
+   * Fetches the pet's reference photo URL from Supabase
+   * Returns null if no photo is found
+   * CACHED: Only fetches from DB once per book order
+   */
+  private async getPetReferencePhoto(bookOrderId: string): Promise<string | null> {
+    // Check cache first
+    if (this.petPhotoCache.has(bookOrderId)) {
+      console.log(`Using cached pet photo for book order ${bookOrderId}`);
+      return this.petPhotoCache.get(bookOrderId)!;
+    }
+
+    try {
+      const supabase = getSupabase();
+
+      // Query uploaded_images table for pet photo
+      const { data, error } = await supabase
+        .from('uploaded_images')
+        .select('storage_url')
+        .eq('book_order_id', bookOrderId)
+        .eq('image_type', 'pet')
+        .single();
+
+      const photoUrl = (error || !data) ? null : data.storage_url;
+
+      // Cache the result
+      this.petPhotoCache.set(bookOrderId, photoUrl);
+
+      if (photoUrl) {
+        console.log(`Found and cached pet photo for book order ${bookOrderId}`);
+      } else {
+        console.log(`No pet photo found for book order ${bookOrderId}`);
+      }
+
+      return photoUrl;
+    } catch (error) {
+      console.error('Error fetching pet photo:', error);
+      this.petPhotoCache.set(bookOrderId, null);
       return null;
     }
   }
@@ -348,6 +391,27 @@ export class ImageGenerationService {
         console.log(`Using reference photo for character consistency across all ${storyPages.length} pages`);
       }
 
+      // Fetch pet data and photo
+      const { data: petData } = await supabase
+        .from('book_pets')
+        .select('*')
+        .eq('book_order_id', bookOrderId)
+        .single();
+
+      const petReferenceImageUrl = await this.getPetReferencePhoto(bookOrderId);
+      let petReferenceImageData = null;
+      let petInfo: { name: string; type: string; colour: string } | null = null;
+
+      if (petData && petReferenceImageUrl) {
+        petReferenceImageData = await urlToBase64(petReferenceImageUrl);
+        petInfo = {
+          name: petData.pet_name,
+          type: petData.pet_type,
+          colour: petData.colour,
+        };
+        console.log(`Using pet photo for ${petInfo.name} (${petInfo.colour} ${petInfo.type})`);
+      }
+
       // START A CHAT SESSION FOR CONSISTENCY
       const genAI = getGemini();
       const model = genAI.getGenerativeModel({
@@ -385,6 +449,8 @@ export class ImageGenerationService {
             childFirstName,
             illustrationStyle,
             referenceImageData,
+            petReferenceImageData,
+            petInfo,
             isBackCover: false,
           });
           generatedImages.push(frontCoverImage);
@@ -408,6 +474,8 @@ export class ImageGenerationService {
             illustrationStyle,
             childFirstName,
             referenceImageData,
+            petReferenceImageData,
+            petInfo,
             pageIndex: i,
             totalPages: storyPages.length,
           });
@@ -431,6 +499,8 @@ export class ImageGenerationService {
             childFirstName,
             illustrationStyle,
             referenceImageData,
+            petReferenceImageData,
+            petInfo,
             isBackCover: true,
           });
           generatedImages.push(backCoverImage);
@@ -721,7 +791,8 @@ export class ImageGenerationService {
    */
   private buildCharacterContextPrompt(childFirstName: string, illustrationStyle: string): string {
     const styleDescriptions: Record<string, string> = {
-      'photographic': 'photorealistic photographs that look like professional photography',
+      'photographic': 'highly detailed realistic illustrations with lifelike rendering',
+      'realistic': 'highly detailed realistic illustrations with lifelike rendering',
       'watercolour': 'soft watercolor paintings',
       'digital-art': 'modern digital illustrations',
       'cartoon': 'playful cartoon-style illustrations',
@@ -734,7 +805,6 @@ export class ImageGenerationService {
     };
 
     const styleDesc = styleDescriptions[illustrationStyle] || 'illustrations';
-    const isPhotographic = illustrationStyle === 'photographic';
 
     let prompt = `I need you to help me create a children's book with consistent ${styleDesc}.\n\n`;
 
@@ -774,17 +844,19 @@ export class ImageGenerationService {
     illustrationStyle: string;
     childFirstName: string;
     referenceImageData: any;
+    petReferenceImageData?: any;
+    petInfo?: { name: string; type: string; colour: string } | null;
     pageIndex: number;
     totalPages: number;
   }): Promise<any> {
-    const { chat, bookOrderId, storyPage, illustrationStyle, childFirstName, referenceImageData, pageIndex } = params;
+    const { chat, bookOrderId, storyPage, illustrationStyle, childFirstName, referenceImageData, petReferenceImageData, petInfo, pageIndex } = params;
     const pageStartTime = Date.now();
 
     try {
       const supabase = getSupabase();
 
       // Build the prompt for this specific page
-      const prompt = this.buildConversationalImagePrompt(storyPage, illustrationStyle, childFirstName, pageIndex);
+      const prompt = this.buildConversationalImagePrompt(storyPage, illustrationStyle, childFirstName, pageIndex, petInfo);
 
       console.log(`[Page ${storyPage.page_number}] Sending prompt in conversation context...`);
 
@@ -792,10 +864,16 @@ export class ImageGenerationService {
       // Gemini docs note that character features can drift, so we reinforce every time
       const messageParts: any[] = [];
 
-      // ALWAYS include reference image for strongest character consistency
+      // ALWAYS include child reference image for strongest character consistency
       if (referenceImageData) {
         messageParts.push(referenceImageData);
-        console.log(`[Page ${storyPage.page_number}] Including reference image for consistency`);
+        console.log(`[Page ${storyPage.page_number}] Including child reference image for consistency`);
+      }
+
+      // Include pet reference if available
+      if (petReferenceImageData && petInfo) {
+        messageParts.push(petReferenceImageData);
+        console.log(`[Page ${storyPage.page_number}] Including pet reference image for ${petInfo.name}`);
       }
 
       messageParts.push({ text: prompt });
@@ -893,9 +971,11 @@ export class ImageGenerationService {
     childFirstName: string;
     illustrationStyle: string;
     referenceImageData: any;
+    petReferenceImageData?: any;
+    petInfo?: { name: string; type: string; colour: string } | null;
     isBackCover: boolean;
   }): Promise<any> {
-    const { chat, bookOrderId, storyTitle, childFirstName, illustrationStyle, referenceImageData, isBackCover } = params;
+    const { chat, bookOrderId, storyTitle, childFirstName, illustrationStyle, referenceImageData, petReferenceImageData, petInfo, isBackCover } = params;
     const coverType = isBackCover ? 'back' : 'front';
     const pageNumber = isBackCover ? 16 : 0;
     const coverStartTime = Date.now();
@@ -903,10 +983,10 @@ export class ImageGenerationService {
     try {
       const supabase = getSupabase();
 
-      // Build the cover prompt
+      // Build the cover prompt with pet info
       const prompt = isBackCover
-        ? this.buildConversationalBackCoverPrompt(storyTitle, childFirstName, illustrationStyle)
-        : this.buildConversationalFrontCoverPrompt(storyTitle, childFirstName, illustrationStyle);
+        ? this.buildConversationalBackCoverPrompt(storyTitle, childFirstName, illustrationStyle, petInfo)
+        : this.buildConversationalFrontCoverPrompt(storyTitle, childFirstName, illustrationStyle, petInfo);
 
       console.log(`[${coverType.toUpperCase()} Cover] Sending prompt in conversation context...`);
       console.log(`[${coverType.toUpperCase()} Cover] Prompt length: ${prompt.length} chars`);
@@ -915,10 +995,16 @@ export class ImageGenerationService {
       // Send message in conversation with reference reinforcement
       const messageParts: any[] = [];
 
-      // Always include reference for covers for stronger consistency
+      // Always include child reference for covers for stronger consistency
       if (referenceImageData) {
         messageParts.push(referenceImageData);
-        console.log(`[${coverType.toUpperCase()} Cover] Including reference image`);
+        console.log(`[${coverType.toUpperCase()} Cover] Including child reference image`);
+      }
+
+      // Include pet reference if available
+      if (petReferenceImageData && petInfo) {
+        messageParts.push(petReferenceImageData);
+        console.log(`[${coverType.toUpperCase()} Cover] Including pet reference image for ${petInfo.name}`);
       }
 
       messageParts.push({ text: prompt });
@@ -1052,7 +1138,12 @@ export class ImageGenerationService {
   /**
    * Builds a conversational front cover prompt
    */
-  private buildConversationalFrontCoverPrompt(storyTitle: string, childFirstName: string, illustrationStyle: string): string {
+  private buildConversationalFrontCoverPrompt(
+    storyTitle: string,
+    childFirstName: string,
+    illustrationStyle: string,
+    petInfo?: { name: string; type: string; colour: string } | null
+  ): string {
     let prompt = `Now create the front cover for our story.\n\n`;
 
     prompt += `FRONT COVER REQUIREMENTS:\n`;
@@ -1061,9 +1152,14 @@ export class ImageGenerationService {
 
     prompt += `CRITICAL REQUIREMENTS:\n`;
     prompt += `1. CHARACTER MATCH:\n`;
-    prompt += `   - ${childFirstName} must look EXACTLY like the reference photo I just provided\n`;
+    prompt += `   - ${childFirstName} must look EXACTLY like the first reference photo I provided\n`;
     prompt += `   - Same face, hair color, hairstyle, eye color, and features\n`;
-    prompt += `   - ${childFirstName} must be immediately recognizable\n\n`;
+    prompt += `   - ${childFirstName} must be immediately recognizable\n`;
+    if (petInfo) {
+      prompt += `   - ${petInfo.name} (the ${petInfo.colour} ${petInfo.type}) must look EXACTLY like the second reference photo\n`;
+      prompt += `   - Include both ${childFirstName} and ${petInfo.name} together in the scene\n`;
+    }
+    prompt += `\n`;
 
     prompt += `2. ILLUSTRATION STYLE (CRITICAL - MAINTAIN EXACT STYLE):\n`;
     prompt += this.getDetailedStyleInstructions(illustrationStyle);
@@ -1072,9 +1168,13 @@ export class ImageGenerationService {
     prompt += `3. TEXT AND COMPOSITION:\n`;
     prompt += `   - Render title "${storyTitle}" at top in large, bold, playful font\n`;
     prompt += `   - Render "Starring ${childFirstName}" at bottom in elegant script\n`;
-    prompt += `   - ${childFirstName} as the hero in an enchanting scene\n\n`;
+    prompt += `   - ${childFirstName} as the hero in an enchanting scene`;
+    if (petInfo) {
+      prompt += ` with ${petInfo.name} the ${petInfo.type}`;
+    }
+    prompt += `\n\n`;
 
-    prompt += `Create the cover now. Remember: ${childFirstName} must match the reference photo exactly, and this must be a professional illustration.`;
+    prompt += `Create the cover now. Remember: match all reference photos exactly, and this must be a professional illustration.`;
 
     return prompt;
   }
@@ -1082,11 +1182,20 @@ export class ImageGenerationService {
   /**
    * Builds a conversational back cover prompt
    */
-  private buildConversationalBackCoverPrompt(storyTitle: string, childFirstName: string, illustrationStyle: string): string {
+  private buildConversationalBackCoverPrompt(
+    storyTitle: string,
+    childFirstName: string,
+    illustrationStyle: string,
+    petInfo?: { name: string; type: string; colour: string } | null
+  ): string {
     let prompt = `Now create the back cover for our story.\n\n`;
 
     prompt += `BACK COVER REQUIREMENTS:\n`;
-    prompt += `- Decorative scene showing ${childFirstName} in a memorable moment\n`;
+    prompt += `- Decorative scene showing ${childFirstName}`;
+    if (petInfo) {
+      prompt += ` and ${petInfo.name} the ${petInfo.type}`;
+    }
+    prompt += ` in a memorable moment\n`;
     prompt += `- Heartwarming and age-appropriate\n`;
     prompt += `- Complements the story's theme\n\n`;
 
@@ -1094,13 +1203,18 @@ export class ImageGenerationService {
     prompt += `1. CHARACTER MATCH:\n`;
     prompt += `   - ${childFirstName} must look EXACTLY like the reference photo\n`;
     prompt += `   - Same facial features, hair, eyes as in ALL previous images\n`;
-    prompt += `   - Perfect consistency with front cover and story pages\n\n`;
+    prompt += `   - Perfect consistency with front cover and story pages\n`;
+    if (petInfo) {
+      prompt += `   - ${petInfo.name} must look EXACTLY like the pet reference photo\n`;
+      prompt += `   - Same appearance as in all previous images\n`;
+    }
+    prompt += `\n`;
 
     prompt += `2. ILLUSTRATION STYLE (CRITICAL - MAINTAIN EXACT STYLE):\n`;
     prompt += this.getDetailedStyleInstructions(illustrationStyle);
     prompt += `\n`;
 
-    prompt += `Create the back cover now. Remember: ${childFirstName} must be identical to all previous images, and this must be a professional illustration.`;
+    prompt += `Create the back cover now. Remember: all characters must be identical to previous images, and this must be a professional illustration.`;
 
     return prompt;
   }
@@ -1231,35 +1345,68 @@ export class ImageGenerationService {
     return styleInstructions[illustrationStyle] || styleInstructions['watercolour'];
   }
 
-  private buildConversationalImagePrompt(storyPage: any, illustrationStyle: string, childFirstName: string, pageIndex: number): string {
-    // Rotate through varied camera angles and compositions for visual variety
+  private buildConversationalImagePrompt(
+    storyPage: any,
+    illustrationStyle: string,
+    childFirstName: string,
+    pageIndex: number,
+    petInfo?: { name: string; type: string; colour: string } | null
+  ): string {
+    // Expanded rotation of varied camera angles and compositions for MORE visual variety
     const cameraAngles = [
       'medium shot at eye level',
       'wide-angle shot showing the full scene',
       'close-up shot focusing on emotion',
-      'low-angle perspective looking up',
+      'low-angle perspective looking up dramatically',
+      'high-angle perspective looking down',
       'over-the-shoulder view',
-      'dynamic action shot with movement',
+      'dynamic action shot with movement and energy',
+      'extreme close-up of face and expression',
+      'side profile view',
+      'three-quarter angle view',
+      'environmental shot with character in landscape',
+      'dutch angle (tilted) for drama',
     ];
     const cameraAngle = cameraAngles[pageIndex % cameraAngles.length];
 
-    let prompt = `Now create the next image for the story.\n\n`;
+    // Varied lighting and mood suggestions for each page
+    const lightingMoods = [
+      'warm, golden lighting',
+      'cool, blue atmospheric lighting',
+      'dramatic side lighting with strong shadows',
+      'soft, diffused lighting',
+      'bright, cheerful front lighting',
+      'backlit with rim light effect',
+      'dappled lighting through trees',
+      'moody, atmospheric lighting',
+      'sunrise/sunset warm glow',
+      'magical, glowing light sources',
+    ];
+    const lightingMood = lightingMoods[pageIndex % lightingMoods.length];
+
+    let prompt = `Now create the next image for the story. IMPORTANT: Make this visually DISTINCT from previous pages with unique composition, angle, and mood.\n\n`;
     prompt += `PAGE ${storyPage.page_number} SCENE:\n${storyPage.image_prompt}\n\n`;
 
     prompt += `CRITICAL REQUIREMENTS:\n`;
     prompt += `1. CHARACTER CONSISTENCY AND IDENTITY:\n`;
-    prompt += `   - ${childFirstName} must look EXACTLY the same as in the reference photo I provided\n`;
+    prompt += `   - ${childFirstName} must look EXACTLY the same as in the first reference photo\n`;
     prompt += `   - Retain facial identity, eye color, hairstyle, hair color, and all appearance details from reference\n`;
     prompt += `   - ${childFirstName} should be immediately recognizable as the same person\n`;
     prompt += `   - IMPORTANT: Show ${childFirstName} ONCE and only once in the scene (no duplicates, no multiple instances)\n`;
+    if (petInfo) {
+      prompt += `   - ${petInfo.name} (the ${petInfo.colour} ${petInfo.type}) must look EXACTLY like the second reference photo\n`;
+      prompt += `   - Include ${petInfo.name} naturally in the scene when appropriate to the story\n`;
+    }
     prompt += `   - If other people appear, they must look completely different from ${childFirstName}\n\n`;
 
-    prompt += `2. COMPOSITION AND VARIETY:\n`;
+    prompt += `2. COMPOSITION AND VARIETY (CRITICAL - MAKE THIS UNIQUE):\n`;
     prompt += `   - Use ${cameraAngle} for this scene\n`;
-    prompt += `   - Create a dynamic, engaging composition with ${childFirstName} in a natural, varied pose\n`;
-    prompt += `   - Avoid repetitive poses - make each image visually distinct\n`;
-    prompt += `   - ${childFirstName} can be standing, sitting, moving, reaching, looking in different directions\n`;
-    prompt += `   - Vary the framing and perspective to keep each image interesting\n\n`;
+    prompt += `   - Apply ${lightingMood} to create distinct atmosphere\n`;
+    prompt += `   - Create a COMPLETELY DIFFERENT composition from all previous pages\n`;
+    prompt += `   - Vary ${childFirstName}'s pose significantly: standing, sitting, jumping, reaching, kneeling, lying down, running, etc.\n`;
+    prompt += `   - Change ${childFirstName}'s facing direction and body orientation\n`;
+    prompt += `   - Vary background elements, color palette, and environmental details\n`;
+    prompt += `   - Make this page visually memorable and distinct from others\n\n`;
 
     prompt += `3. ILLUSTRATION STYLE (CRITICAL - MAINTAIN EXACT STYLE):\n`;
     prompt += this.getDetailedStyleInstructions(illustrationStyle);
