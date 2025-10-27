@@ -742,16 +742,39 @@ export class ImageGenerationService {
     prompt += `- Any distinctive features or characteristics\n\n`;
 
     if (isPhotographic) {
-      prompt += `STYLE REQUIREMENTS FOR ALL IMAGES:\n`;
-      prompt += `- Every image must be a REAL PHOTOGRAPH - shot with actual camera, not drawn/illustrated/painted/digital art\n`;
-      prompt += `- Professional camera work - DSLR or mirrorless camera aesthetics (Canon/Nikon/Sony style)\n`;
-      prompt += `- Natural camera settings - realistic depth of field, natural bokeh, proper exposure\n`;
-      prompt += `- Real photography lighting - golden hour outdoors, window light indoors, or professional photo studio lighting\n`;
-      prompt += `- Real physical locations and environments - actual places, not illustrated or painted backdrops\n`;
-      prompt += `- Editorial/lifestyle photography aesthetic - like magazine photography or professional family portraits\n`;
-      prompt += `- Authentic photographic look throughout all images - NO illustration, cartoon, or art style\n\n`;
+      prompt += `PHOTOGRAPHY REQUIREMENTS - CRITICAL FOR ALL IMAGES:\n\n`;
+      prompt += `THIS IS EXTREMELY IMPORTANT:\n`;
+      prompt += `- You MUST create REAL PHOTOGRAPHS ONLY - never illustrations, drawings, paintings, or digital art\n`;
+      prompt += `- Every single image must look like it was taken with an actual camera\n`;
+      prompt += `- Professional DSLR or mirrorless camera quality (Canon EOS, Nikon D, Sony Alpha style)\n`;
+      prompt += `- Authentic photography characteristics:\n`;
+      prompt += `  * Natural depth of field from camera lens (NOT artistic blur)\n`;
+      prompt += `  * Real optical bokeh effect from lens aperture\n`;
+      prompt += `  * Proper photographic exposure and white balance\n`;
+      prompt += `  * Realistic grain or sharpness typical of photography\n`;
+      prompt += `  * Natural camera perspective and field of view\n\n`;
+      prompt += `LIGHTING - Must be photographic:\n`;
+      prompt += `- Golden hour natural sunlight (warm, directional)\n`;
+      prompt += `- Window light indoors (soft, natural)\n`;
+      prompt += `- Professional photo studio lighting (umbrella lights, softboxes)\n`;
+      prompt += `- NO artistic lighting, painted lighting, or illustrated lighting effects\n\n`;
+      prompt += `ENVIRONMENTS - Must be real:\n`;
+      prompt += `- Real physical locations photographed by a camera\n`;
+      prompt += `- Actual textures, materials, and surfaces\n`;
+      prompt += `- NOT painted backdrops, illustrated scenes, or artistic interpretations\n\n`;
+      prompt += `STYLE REFERENCE:\n`;
+      prompt += `- Magazine editorial photography\n`;
+      prompt += `- Professional family portrait photography\n`;
+      prompt += `- Lifestyle photography\n`;
+      prompt += `- Documentary photography\n`;
+      prompt += `- Think: National Geographic Kids, professional stock photography, or high-end family photo sessions\n\n`;
+      prompt += `ABSOLUTELY FORBIDDEN:\n`;
+      prompt += `- Illustrations, drawings, paintings, sketches\n`;
+      prompt += `- Cartoon style, anime style, comic book style\n`;
+      prompt += `- Digital art, CG art, artistic rendering\n`;
+      prompt += `- Any non-photographic visual style\n\n`;
     } else {
-      prompt += `STYLE REQUIREMENTS FOR ALL IMAGES:\n`;
+      prompt += `ILLUSTRATION STYLE REQUIREMENTS:\n`;
       prompt += `- Every image must be in the same ${styleDesc} style\n`;
       prompt += `- Consistent artistic approach across all pages\n`;
       prompt += `- Coherent visual aesthetic throughout the book\n\n`;
@@ -793,13 +816,14 @@ export class ImageGenerationService {
 
       console.log(`[Page ${storyPage.page_number}] Sending prompt in conversation context...`);
 
-      // Send message in conversation - optionally include reference again for extra reinforcement
+      // Send message in conversation - include reference in EVERY image for maximum consistency
+      // Gemini docs note that character features can drift, so we reinforce every time
       const messageParts: any[] = [];
 
-      // Include reference image periodically for reinforcement (every 5 pages)
-      if (referenceImageData && (pageIndex === 0 || pageIndex % 5 === 0)) {
+      // ALWAYS include reference image for strongest character consistency
+      if (referenceImageData) {
         messageParts.push(referenceImageData);
-        console.log(`[Page ${storyPage.page_number}] Reinforcing reference image`);
+        console.log(`[Page ${storyPage.page_number}] Including reference image for consistency`);
       }
 
       messageParts.push({ text: prompt });
@@ -1015,28 +1039,40 @@ export class ImageGenerationService {
     const isPhotographic = illustrationStyle === 'photographic';
 
     let prompt = isPhotographic
-      ? `Now photograph the front cover for our photo story.\n\n`
+      ? `Now take a professional photograph for the front cover.\n\n`
       : `Now create the front cover for our story.\n\n`;
 
     prompt += `FRONT COVER REQUIREMENTS:\n`;
     prompt += `TITLE: "${storyTitle}"\n`;
     prompt += `SUBTITLE: "Starring ${childFirstName}"\n\n`;
 
-    prompt += `CRITICAL REMINDERS:\n`;
-    prompt += `- ${childFirstName} must look EXACTLY the same as in the reference photo\n`;
-    prompt += `- Keep the SAME facial features, hair, eyes, and appearance we've established\n`;
-    prompt += `- Maintain the ${isPhotographic ? 'photographic' : 'illustration'} style consistently\n`;
+    prompt += `CRITICAL REQUIREMENTS:\n`;
+    prompt += `1. CHARACTER MATCH:\n`;
+    prompt += `   - ${childFirstName} must look EXACTLY like the reference photo I just provided\n`;
+    prompt += `   - Same face, hair color, hairstyle, eye color, and features\n`;
+    prompt += `   - ${childFirstName} must be immediately recognizable\n\n`;
 
     if (isPhotographic) {
-      prompt += `- This MUST be a REAL PHOTOGRAPH shot with a camera\n`;
-      prompt += `- Professional cover photography - magazine/editorial quality\n`;
-      prompt += `- Natural lighting, realistic depth of field, authentic photographic look\n`;
+      prompt += `2. PHOTOGRAPHY STYLE (NOT ILLUSTRATION):\n`;
+      prompt += `   - This MUST be a REAL PHOTOGRAPH - professional cover photography\n`;
+      prompt += `   - DO NOT create illustration, drawing, digital art, or painting\n`;
+      prompt += `   - Professional DSLR camera aesthetic - Canon, Nikon, Sony quality\n`;
+      prompt += `   - Magazine or editorial cover photography style\n`;
+      prompt += `   - Natural photographic lighting - golden hour, studio lights, or window light\n`;
+      prompt += `   - Authentic photographic depth of field and bokeh\n`;
+      prompt += `   - Real physical environment, not illustrated background\n\n`;
+    } else {
+      prompt += `2. ILLUSTRATION STYLE:\n`;
+      prompt += `   - Professional children's book cover illustration\n`;
+      prompt += `   - Match the style we've established\n\n`;
     }
 
-    prompt += `\n- Render the title "${storyTitle}" prominently at the top in large, bold, playful font\n`;
-    prompt += `- Render "Starring ${childFirstName}" at the bottom in elegant script\n`;
-    prompt += `- ${childFirstName} should be the hero in an enchanting scene\n`;
-    prompt += `\n${isPhotographic ? 'Photograph' : 'Create'} this cover now, keeping ${childFirstName} immediately recognizable.`;
+    prompt += `3. TEXT AND COMPOSITION:\n`;
+    prompt += `   - Render title "${storyTitle}" at top in large, bold, playful font\n`;
+    prompt += `   - Render "Starring ${childFirstName}" at bottom in elegant script\n`;
+    prompt += `   - ${childFirstName} as the hero in an enchanting scene\n\n`;
+
+    prompt += `${isPhotographic ? 'Take the photograph' : 'Create the cover'} now. Remember: ${childFirstName} must match the reference photo exactly, and this must be a ${isPhotographic ? 'real photograph, NOT illustrated' : 'professional illustration'}.`;
 
     return prompt;
   }
@@ -1048,24 +1084,34 @@ export class ImageGenerationService {
     const isPhotographic = illustrationStyle === 'photographic';
 
     let prompt = isPhotographic
-      ? `Now photograph the back cover for our photo story.\n\n`
+      ? `Now take a professional photograph for the back cover.\n\n`
       : `Now create the back cover for our story.\n\n`;
 
     prompt += `BACK COVER REQUIREMENTS:\n`;
-    prompt += `- Decorative, whimsical scene complementing the story\n`;
-    prompt += `- ${childFirstName} in a memorable, heartwarming moment\n\n`;
+    prompt += `- Decorative scene showing ${childFirstName} in a memorable moment\n`;
+    prompt += `- Heartwarming and age-appropriate\n`;
+    prompt += `- Complements the story's theme\n\n`;
 
-    prompt += `CRITICAL REMINDERS:\n`;
-    prompt += `- ${childFirstName} must look EXACTLY the same as throughout the story\n`;
-    prompt += `- Keep the SAME facial features, hair, eyes, and appearance\n`;
-    prompt += `- Maintain the ${isPhotographic ? 'photographic' : 'illustration'} style we've used\n`;
+    prompt += `CRITICAL REQUIREMENTS:\n`;
+    prompt += `1. CHARACTER MATCH:\n`;
+    prompt += `   - ${childFirstName} must look EXACTLY like the reference photo\n`;
+    prompt += `   - Same facial features, hair, eyes as in ALL previous images\n`;
+    prompt += `   - Perfect consistency with front cover and story pages\n\n`;
 
     if (isPhotographic) {
-      prompt += `- This MUST be a REAL PHOTOGRAPH matching the front cover and story pages\n`;
-      prompt += `- Professional photography with natural lighting and authentic look\n`;
+      prompt += `2. PHOTOGRAPHY STYLE (NOT ILLUSTRATION):\n`;
+      prompt += `   - This MUST be a REAL PHOTOGRAPH matching all previous photos\n`;
+      prompt += `   - DO NOT create illustration, drawing, or digital art\n`;
+      prompt += `   - Professional DSLR camera quality - same as front cover\n`;
+      prompt += `   - Natural photographic lighting and authentic camera bokeh\n`;
+      prompt += `   - Real physical environment and authentic photography\n\n`;
+    } else {
+      prompt += `2. ILLUSTRATION STYLE:\n`;
+      prompt += `   - Match the exact illustration style from previous images\n`;
+      prompt += `   - Consistent artistic approach\n\n`;
     }
 
-    prompt += `\n${isPhotographic ? 'Photograph' : 'Create'} this back cover now, ensuring ${childFirstName} is consistent with all previous images.`;
+    prompt += `${isPhotographic ? 'Take the photograph' : 'Create the back cover'} now. Remember: ${childFirstName} must be identical to all previous images, and this must be ${isPhotographic ? 'a real photograph, NOT illustrated or drawn' : 'an illustration'}.`;
 
     return prompt;
   }
@@ -1079,19 +1125,29 @@ export class ImageGenerationService {
     let prompt = `Now ${isPhotographic ? 'photograph' : 'create'} the next ${isPhotographic ? 'scene' : 'image'} for the story.\n\n`;
     prompt += `PAGE ${storyPage.page_number} SCENE:\n${storyPage.image_prompt}\n\n`;
 
-    prompt += `CRITICAL REMINDERS:\n`;
-    prompt += `- ${childFirstName} must look EXACTLY the same as in the reference photo and previous images\n`;
-    prompt += `- Keep the SAME facial features, hair, eyes, and appearance\n`;
-    prompt += `- Maintain the ${isPhotographic ? 'photographic' : 'illustration'} style consistently\n`;
+    prompt += `CRITICAL REQUIREMENTS:\n`;
+    prompt += `1. CHARACTER CONSISTENCY:\n`;
+    prompt += `   - ${childFirstName} must look EXACTLY the same as in the reference photo I just provided\n`;
+    prompt += `   - Keep the SAME facial features, hair color, hairstyle, eye color, and appearance\n`;
+    prompt += `   - ${childFirstName} should be immediately recognizable as the same person\n\n`;
 
     if (isPhotographic) {
-      prompt += `- This MUST be a REAL PHOTOGRAPH shot with a camera, NOT illustrated, drawn, painted, or digital art\n`;
-      prompt += `- Professional camera work with natural angles, realistic depth of field, and authentic bokeh\n`;
-      prompt += `- Natural real-world photography lighting - outdoor daylight or indoor ambient/studio lighting\n`;
-      prompt += `- Real physical environment and actual location\n`;
+      prompt += `2. PHOTOGRAPHY STYLE (CRITICAL - NOT ILLUSTRATION):\n`;
+      prompt += `   - This MUST be a REAL PHOTOGRAPH taken with an actual camera\n`;
+      prompt += `   - DO NOT create an illustration, drawing, painting, cartoon, or digital art\n`;
+      prompt += `   - Use photorealistic rendering ONLY - like a Canon, Nikon, or Sony DSLR photograph\n`;
+      prompt += `   - Professional camera settings: realistic depth of field, natural bokeh, proper exposure\n`;
+      prompt += `   - Natural lighting ONLY: golden hour sunlight, window light, or studio photography lighting\n`;
+      prompt += `   - Real physical location with actual textures, materials, and environments\n`;
+      prompt += `   - Documentary/lifestyle photography aesthetic - authentic, not artistic or stylized\n`;
+      prompt += `   - Think magazine photography, family portraits, editorial photography\n\n`;
+    } else {
+      prompt += `2. ILLUSTRATION STYLE:\n`;
+      prompt += `   - Maintain the same illustration style as previous images\n`;
+      prompt += `   - Keep consistent artistic approach throughout\n\n`;
     }
 
-    prompt += `\n${isPhotographic ? 'Photograph' : 'Create'} this ${isPhotographic ? 'scene' : 'image'} now, ensuring ${childFirstName} is immediately recognizable as the same person from the reference.`;
+    prompt += `${isPhotographic ? 'Take the photograph' : 'Create the illustration'} now. Remember: ${childFirstName} must match the reference photo exactly.`;
 
     return prompt;
   }

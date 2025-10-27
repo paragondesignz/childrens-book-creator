@@ -163,7 +163,7 @@ export function CreateBookWizard({ templates }: CreateBookWizardProps) {
       if (childPhotoUrl) {
         await supabase.from('uploaded_images').insert({
           book_order_id: book.id,
-          image_type: 'child',
+          image_type: 'child_photo', // CRITICAL: Must match query in imageGeneration.service.ts
           storage_url: childPhotoUrl,
           encrypted_url: childPhotoUrl,
           expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
