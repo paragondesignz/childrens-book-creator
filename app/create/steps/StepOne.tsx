@@ -18,14 +18,18 @@ export function StepOne({ templates, formData, updateFormData, onNext }: StepOne
 
   return (
     <div>
-      <h2 className="text-2xl font-bold mb-6">Choose Your Story Template</h2>
+      <h2 className="text-2xl font-bold mb-4">Choose Your Story Template</h2>
+      <p className="text-gray-600 text-sm mb-4">
+        Select a pre-made story template or create your own custom story below
+      </p>
 
-      <div className="space-y-4 mb-6">
+      {/* Scrollable template list */}
+      <div className="max-h-[400px] overflow-y-auto pr-2 space-y-4 mb-6 border rounded-lg p-4 bg-gray-50">
         {templates.map((template) => (
           <div
             key={template.id}
             onClick={() => updateFormData({ templateId: template.id, customStoryPrompt: undefined })}
-            className={`border rounded-lg p-4 cursor-pointer transition ${
+            className={`border rounded-lg p-4 cursor-pointer transition bg-white ${
               formData.templateId === template.id
                 ? 'border-primary bg-primary/5'
                 : 'border-gray-200 hover:border-primary/50'

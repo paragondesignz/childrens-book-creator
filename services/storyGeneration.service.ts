@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import axios from 'axios';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 // Lazy initialization to ensure environment variables are loaded
 function getSupabase() {
@@ -7,6 +7,15 @@ function getSupabase() {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
+}
+
+// Lazy initialization for Gemini
+function getGemini() {
+  const apiKey = process.env.GOOGLE_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error('GEMINI_API_KEY or GOOGLE_GEMINI_API_KEY environment variable is required');
+  }
+  return new GoogleGenerativeAI(apiKey);
 }
 
 interface StoryPage {
@@ -54,45 +63,29 @@ export class StoryGenerationService {
       // Build prompt
       const prompt = this.buildPrompt(params, template);
 
-      console.log('Generating story with GPT-5 via OpenRouter...');
+      console.log('Generating story with Gemini 2.5 Flash...');
 
-      // Generate story with GPT-5 via OpenRouter
-      const response = await axios.post(
-        'https://openrouter.ai/api/v1/chat/completions',
-        {
-          model: process.env.OPENROUTER_TEXT_MODEL || 'openai/gpt-4o',
-          messages: [
-            {
-              role: 'system',
-              content: 'You are a creative children\'s story writer. Always respond with valid JSON matching the requested format.'
-            },
-            {
-              role: 'user',
-              content: prompt
-            }
-          ],
+      // Generate story with Gemini 2.5 Flash
+      const genAI = getGemini();
+      const model = genAI.getGenerativeModel({
+        model: 'gemini-2.5-flash',
+        generationConfig: {
           temperature: 0.8,
-          max_tokens: 4096,
-          response_format: { type: 'json_object' }
+          maxOutputTokens: 4096,
+          responseMimeType: 'application/json',
         },
-        {
-          headers: {
-            'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
-            'Content-Type': 'application/json',
-            'HTTP-Referer': process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
-            'X-Title': 'Children\'s Book Creator'
-          }
-        }
-      );
+      });
 
-      const text = response.data.choices[0].message.content;
+      const result = await model.generateContent(prompt);
+      const response = result.response;
+      const text = response.text();
 
       // Parse JSON response
       const storyData: GeneratedStoryData = JSON.parse(text);
 
       // Validate story data
-      if (!storyData.title || !storyData.pages || storyData.pages.length !== 15) {
-        throw new Error('Invalid story data received from GPT-5');
+      if (!storyData.title || !storyData.pages || storyData.pages.length !== 10) {
+        throw new Error(`Invalid story data received from Gemini: expected 10 pages, got ${storyData.pages?.length || 0}`);
       }
 
       // Save to database
@@ -147,7 +140,7 @@ export class StoryGenerationService {
   private buildPrompt(params: GenerateStoryParams, template: any): string {
     const { childFirstName, childAge, childGender, favouriteColours, interests, personalityTraits, customPrompt, pets } = params;
 
-    let prompt = `Write a 15-page children's story for ${childFirstName}, a ${childAge}-year-old child.\n\n`;
+    let prompt = `Write a 10-page children's story for ${childFirstName}, a ${childAge}-year-old child.\n\n`;
 
     if (template) {
       prompt += `Story Template: ${template.title}\n`;
@@ -175,7 +168,7 @@ export class StoryGenerationService {
     prompt += `- Age-appropriate language for ${childAge}-year-olds\n`;
     prompt += `- Positive, encouraging themes\n`;
     prompt += `- ${childFirstName} should be the protagonist and hero of the story\n`;
-    prompt += `- Story must be exactly 15 pages\n`;
+    prompt += `- Story must be exactly 10 pages\n`;
     prompt += `- Each page should have 50-100 words\n`;
     prompt += `- Include engaging dialogue\n`;
     prompt += `- Educational elements appropriate for the age\n`;
@@ -189,7 +182,7 @@ export class StoryGenerationService {
     prompt += `    {\n`;
     prompt += `      "pageNumber": 1,\n`;
     prompt += `      "text": "The text for this page (50-100 words)",\n`;
-    prompt += `      "imagePrompt": "Detailed description for illustration showing ${childFirstName}..."\n`;
+    prompt += `      "imagePrompt": "Detailed visual scene description showing ${childFirstName} - describe the setting, action, and atmosphere WITHOUT using words like 'illustration' or 'drawing'"\n`;
     prompt += `    }\n`;
     prompt += `  ]\n`;
     prompt += `}`;
