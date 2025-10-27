@@ -14,7 +14,7 @@ const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 export const maxDuration = 300; // 5 minutes (Vercel Pro plan limit)
 export const dynamic = 'force-dynamic';
 
-async function processBookOrder(bookOrderId: string) {
+export async function processBookOrder(bookOrderId: string) {
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
   try {

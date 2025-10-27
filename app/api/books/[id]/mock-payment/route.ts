@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { processBookOrder } from '@/app/api/cron/process-books/route';
 
 export async function POST(
   req: NextRequest,
@@ -90,23 +91,14 @@ export async function POST(
       console.log('[mock-payment] Book marked for processing - triggering immediate processing');
     }
 
-    // Trigger immediate processing (fire-and-forget)
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_URL
-      ? `https://${process.env.VERCEL_URL}`
-      : 'http://localhost:3000';
-
-    console.log('[mock-payment] Triggering processing at:', `${appUrl}/api/cron/process-books`);
-
-    // Fire-and-forget: start processing immediately without waiting
-    fetch(`${appUrl}/api/cron/process-books`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ bookOrderId: book.id }),
-    }).catch(error => {
-      console.error('[mock-payment] Failed to trigger processing (will be picked up by cron):', error);
+    // Trigger immediate processing in background (fire-and-forget)
+    // This avoids HTTP roundtrip delay and starts processing immediately
+    console.log('[mock-payment] Starting background processing for book:', book.id);
+    processBookOrder(book.id).catch(error => {
+      console.error('[mock-payment] Background processing failed (will be picked up by cron):', error);
     });
 
-    // Return success with redirect URL immediately
+    // Return success with redirect URL immediately (don't wait for processing to complete)
     return NextResponse.json({
       success: true,
       redirectUrl: `/books/${book.id}/status`,
