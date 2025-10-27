@@ -41,10 +41,13 @@ function addSecurityHeaders(response: NextResponse): void {
     "default-src 'self'",
     "script-src 'self' 'unsafe-eval' 'unsafe-inline'", // Next.js requires unsafe-eval and unsafe-inline
     "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' data: https:",
-    "font-src 'self'",
-    "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.replicate.com https://replicate.com",
+    "img-src 'self' data: blob: https://*.supabase.co https:",
+    "font-src 'self' data:",
+    "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.replicate.com https://replicate.com https://generativelanguage.googleapis.com",
+    "frame-src 'self'",
     "frame-ancestors 'none'",
+    "object-src 'none'",
+    "base-uri 'self'",
   ].join('; ');
 
   response.headers.set('Content-Security-Policy', cspDirectives);
