@@ -977,7 +977,7 @@ export class ImageGenerationService {
 
       // Log candidate details if they exist
       if (response?.candidates && response.candidates.length > 0) {
-        response.candidates.forEach((candidate, idx) => {
+        response.candidates.forEach((candidate: any, idx: number) => {
           console.log(`[${coverType.toUpperCase()} Cover] Candidate ${idx}:`, {
             finishReason: candidate.finishReason,
             safetyRatings: candidate.safetyRatings,
@@ -1001,7 +1001,7 @@ export class ImageGenerationService {
 
       if (candidate.content && candidate.content.parts) {
         console.log(`[${coverType.toUpperCase()} Cover] Processing ${candidate.content.parts.length} parts from response`);
-        for (const part of candidate.content.parts) {
+        for (const part of candidate.content.parts as any[]) {
           console.log(`[${coverType.toUpperCase()} Cover] Part type:`, {
             hasInlineData: !!part.inlineData,
             hasText: !!part.text,
