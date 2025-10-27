@@ -91,12 +91,15 @@ export class StoryGenerationService {
           console.log(`Received ${text.length} characters, parsing JSON...`);
 
           // Parse JSON response
-          storyData = JSON.parse(text);
+          const parsedData = JSON.parse(text) as GeneratedStoryData;
 
           // Validate story data
-          if (!storyData.title || !storyData.pages || storyData.pages.length !== 10) {
-            throw new Error(`Invalid story data: expected 10 pages, got ${storyData.pages?.length || 0}`);
+          if (!parsedData || !parsedData.title || !parsedData.pages || parsedData.pages.length !== 10) {
+            throw new Error(`Invalid story data: expected 10 pages, got ${parsedData?.pages?.length || 0}`);
           }
+
+          // If validation passes, assign to storyData
+          storyData = parsedData;
 
           console.log(`✓ Valid story generated: "${storyData.title}" with ${storyData.pages.length} pages`);
           break; // Success! Exit retry loop
