@@ -74,7 +74,9 @@ model BookOrder {
   childFirstName        String    @map("child_first_name") @db.VarChar(100)
   childAge              Int       @map("child_age")
   childGender           String?   @map("child_gender") @db.VarChar(50)
+  hometown              String?   @db.VarChar(200)
   favouriteColours      Json?     @map("favourite_colours")
+  favouriteFoods        Json?     @map("favourite_foods")
   interests             Json?
   personalityTraits     Json?     @map("personality_traits")
   customStoryPrompt     String?   @map("custom_story_prompt") @db.Text

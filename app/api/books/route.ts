@@ -5,13 +5,26 @@ import { z } from 'zod';
 const createBookSchema = z.object({
   templateId: z.string().optional(),
   childFirstName: z.string().min(1).max(100),
-  childAge: z.number().int().min(1).max(12),
+  childAge: z.number().int().min(1).max(14),
   childGender: z.enum(['male', 'female', 'non-binary', 'prefer-not-to-say']).optional(),
+  hometown: z.string().optional(),
   favouriteColours: z.array(z.string()).optional(),
+  favouriteFoods: z.array(z.string()).optional(),
   interests: z.array(z.string()).optional(),
   personalityTraits: z.array(z.string()).optional(),
   customStoryPrompt: z.string().optional(),
-  illustrationStyle: z.enum(['watercolour', 'digital-art', 'cartoon', 'storybook-classic', 'modern-minimal']),
+  illustrationStyle: z.enum([
+    'watercolour',
+    'digital-art',
+    'cartoon',
+    'storybook-classic',
+    'modern-minimal',
+    'photographic',
+    'anime',
+    'comic-book',
+    'fantasy-realistic',
+    'graphic-novel'
+  ]),
 });
 
 export async function GET(req: NextRequest) {
@@ -74,7 +87,9 @@ export async function POST(req: NextRequest) {
       child_first_name: validatedData.childFirstName,
       child_age: validatedData.childAge,
       child_gender: validatedData.childGender,
+      hometown: validatedData.hometown,
       favourite_colours: validatedData.favouriteColours,
+      favourite_foods: validatedData.favouriteFoods,
       interests: validatedData.interests,
       personality_traits: validatedData.personalityTraits,
       custom_story_prompt: validatedData.customStoryPrompt,
