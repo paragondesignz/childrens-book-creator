@@ -12,7 +12,7 @@ export default async function DashboardPage() {
     redirect('/login');
   }
 
-  // Get user's books
+  // Get user's books with cover images
   const { data: books } = await supabase
     .from('book_orders')
     .select(`
@@ -23,6 +23,21 @@ export default async function DashboardPage() {
     `)
     .eq('user_id', user.id)
     .order('created_at', { ascending: false });
+
+  // Fetch cover images for completed books
+  const booksWithCovers = await Promise.all((books || []).map(async (book) => {
+    if (book.status === 'completed') {
+      const { data: coverImage } = await supabase
+        .from('generated_images')
+        .select('image_url')
+        .eq('book_order_id', book.id)
+        .eq('page_number', 0) // Front cover
+        .single();
+
+      return { ...book, coverImage: coverImage?.image_url };
+    }
+    return book;
+  }));
 
   const handleSignOut = async () => {
     'use server';
@@ -75,23 +90,35 @@ export default async function DashboardPage() {
         </div>
 
         {/* Books Grid */}
-        {books && books.length > 0 ? (
+        {booksWithCovers && booksWithCovers.length > 0 ? (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {books.map((book) => {
+            {booksWithCovers.map((book: any) => {
               const paidPayment = book.payments?.find((p: any) => p.status === 'completed');
               const canProcess = paidPayment && book.status === 'draft';
 
               return (
-                <div key={book.id} className="bg-white rounded-lg shadow-sm border p-6 relative">
-                  {/* Delete button in top-right corner */}
-                  <div className="absolute top-4 right-4">
-                    <DeleteBookButton
-                      bookId={book.id}
-                      bookTitle={`${book.child_first_name}'s Story`}
-                    />
-                  </div>
+                <div key={book.id} className="bg-white rounded-lg shadow-sm border overflow-hidden">
+                  {/* Cover Image Thumbnail */}
+                  {book.coverImage && (
+                    <div className="relative h-48 bg-gray-100">
+                      <img
+                        src={book.coverImage}
+                        alt={`${book.child_first_name}'s Story Cover`}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  )}
 
-                  <div className="mb-4 pr-8">
+                  <div className="p-6 relative">
+                    {/* Delete button in top-right corner */}
+                    <div className="absolute top-4 right-4">
+                      <DeleteBookButton
+                        bookId={book.id}
+                        bookTitle={`${book.child_first_name}'s Story`}
+                      />
+                    </div>
+
+                    <div className="mb-4 pr-8">
                     <div className="flex items-center justify-between mb-2">
                       <span className={`px-2 py-1 text-xs rounded-full ${
                         book.status === 'completed' ? 'bg-green-100 text-green-800' :
@@ -151,6 +178,7 @@ export default async function DashboardPage() {
                         View Progress
                       </Link>
                     )}
+                    </div>
                   </div>
                 </div>
               );

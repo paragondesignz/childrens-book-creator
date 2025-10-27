@@ -3,7 +3,11 @@ import { createClient } from '@/lib/supabase/server';
 import { CreateBookWizard } from './CreateBookWizard';
 import Link from 'next/link';
 
-export default async function CreatePage() {
+export default async function CreatePage({
+  searchParams,
+}: {
+  searchParams: { template?: string };
+}) {
   const supabase = createClient();
 
   const { data: { user } } = await supabase.auth.getUser();
@@ -22,6 +26,9 @@ export default async function CreatePage() {
   if (error) {
     console.error('Error fetching templates:', error);
   }
+
+  // Get pre-selected template from query params
+  const selectedTemplateId = searchParams.template;
 
   return (
     <main className="min-h-screen bg-gray-50">
@@ -49,7 +56,10 @@ export default async function CreatePage() {
 
         <h1 className="text-4xl font-bold mb-8">Create Your Personalized Story</h1>
 
-        <CreateBookWizard templates={templates || []} />
+        <CreateBookWizard
+          templates={templates || []}
+          initialTemplateId={selectedTemplateId}
+        />
       </div>
     </main>
   );

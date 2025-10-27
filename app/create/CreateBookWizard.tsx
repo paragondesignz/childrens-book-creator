@@ -35,16 +35,19 @@ export interface BookFormData {
 
 interface CreateBookWizardProps {
   templates: any[];
+  initialTemplateId?: string;
 }
 
-export function CreateBookWizard({ templates }: CreateBookWizardProps) {
+export function CreateBookWizard({ templates, initialTemplateId }: CreateBookWizardProps) {
   const router = useRouter();
   const supabase = createClient();
-  const [currentStep, setCurrentStep] = useState(1);
+  // Skip to step 2 if template is pre-selected
+  const [currentStep, setCurrentStep] = useState(initialTemplateId ? 2 : 1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   const [formData, setFormData] = useState<BookFormData>({
+    templateId: initialTemplateId,
     childFirstName: '',
     childAge: 5,
     pets: [],
