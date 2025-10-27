@@ -113,10 +113,11 @@ export default async function BookPreviewPage({ params }: { params: { id: string
             <div className="relative" style={{ minHeight: '800px' }}>
               {pdfUrl ? (
                 <iframe
-                  src={pdfUrl}
-                  className="w-full"
+                  src={`${pdfUrl}#view=FitH`}
+                  className="w-full border-0"
                   style={{ height: '800px' }}
                   title="Book Preview"
+                  sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
                 />
               ) : (
                 <div className="flex items-center justify-center h-full text-gray-500">
